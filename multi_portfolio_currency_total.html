@@ -1,0 +1,364 @@
+
+<style>
+  .pf-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .pf-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+  .pf-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .pf-name { font-size: 15px; font-weight: 500; color: var(--color-text-primary); border: none; background: transparent; outline: none; flex: 1; min-width: 0; }
+  .pf-name:focus { border-bottom: 1px solid var(--color-border-secondary); }
+  .pf-row { display: flex; flex-direction: column; gap: 4px; }
+  .pf-label { font-size: 12px; color: var(--color-text-secondary); display: flex; justify-content: space-between; }
+  .pf-val { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+  .summary-card { background: var(--color-background-secondary); border-radius: 8px; padding: 10px 12px; }
+  .summary-label { font-size: 11px; color: var(--color-text-secondary); margin: 0 0 3px; }
+  .summary-val { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin: 0; }
+  .tog { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  .tog input { opacity: 0; width: 0; height: 0; }
+  .tog-track { position: absolute; inset: 0; border-radius: 10px; cursor: pointer; transition: background 0.2s; }
+  .tog input:checked + .tog-track { background: #185FA5; }
+  .tog input:not(:checked) + .tog-track { background: #888780; }
+  .tog-thumb { position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.2s; pointer-events: none; }
+  .tog input:checked ~ .tog-thumb { transform: translateX(18px); }
+  .tog input:not(:checked) ~ .tog-thumb { transform: translateX(2px); }
+  .tab-btn { padding: 7px 18px; font-size: 14px; cursor: pointer; border-radius: 8px; border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); transition: all 0.15s; }
+  .tab-btn.active { background: var(--color-background-primary); color: var(--color-text-primary); font-weight: 500; border-color: var(--color-border-primary); }
+  .sinput { padding: 6px 8px; font-size: 13px; border: 0.5px solid var(--color-border-tertiary); border-radius: 6px; background: var(--color-background-primary); color: var(--color-text-primary); }
+  .spend-event-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; }
+  .pf-amount-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .pf-pill { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .cur-btn { padding: 5px 14px; font-size: 13px; cursor: pointer; border-radius: 6px; border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); transition: all 0.15s; }
+  .cur-btn.active { background: #185FA5; color: #fff; border-color: #185FA5; font-weight: 500; }
+</style>
+
+<div style="padding: 1rem 0;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 1.25rem;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button class="cur-btn active" id="cur-inr" onclick="setCurrency('INR')">₹ Rupee</button>
+      <button class="cur-btn" id="cur-other" onclick="setCurrency('OTHER')">Custom currency</button>
+    </div>
+    <div id="conversion-wrap" style="display:none; align-items:center; gap:8px;">
+      <span style="font-size:13px; color:var(--color-text-secondary);">₹1 =</span>
+      <input type="number" id="conv-rate" class="sinput" value="0.011" step="0.001" min="0.0001" style="width:90px;" oninput="renderAll()">
+      <input type="text" id="conv-symbol" class="sinput" value="$" style="width:48px;" oninput="renderAll()" placeholder="symbol">
+      <span style="font-size:12px;color:var(--color-text-tertiary);">(e.g. 1/91 ≈ 0.011 for USD)</span>
+    </div>
+  </div>
+
+  <div id="summary-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.5rem;"></div>
+
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
+    <div id="legend" style="display: flex; gap: 14px; font-size: 12px; flex-wrap: wrap;"></div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <label class="tog" title="Show combined total of all portfolios">
+        <input type="checkbox" id="total-toggle" checked onchange="renderAll()">
+        <span class="tog-track"></span><span class="tog-thumb"></span>
+      </label>
+      <span style="font-size:13px; color:var(--color-text-secondary);">Show total</span>
+    </div>
+  </div>
+
+  <div style="position: relative; width: 100%; height: 300px; margin-bottom: 2rem;">
+    <canvas id="mainChart"></canvas>
+  </div>
+
+  <div style="display: flex; gap: 8px; margin-bottom: 1.5rem; background: var(--color-background-secondary); padding: 6px; border-radius: 10px;">
+    <button class="tab-btn active" id="tab-portfolios" onclick="switchTab('portfolios')">Portfolios</button>
+    <button class="tab-btn" id="tab-spends" onclick="switchTab('spends')">Major spends</button>
+  </div>
+
+  <div id="panel-portfolios">
+    <div id="portfolios-container"></div>
+    <button onclick="addPortfolio()" style="width:100%;padding:10px;font-size:14px;cursor:pointer;border-radius:8px;">+ Add portfolio</button>
+  </div>
+
+  <div id="panel-spends" style="display:none;">
+    <div id="spends-container"></div>
+    <div class="pf-card" style="margin-top:0.5rem;">
+      <p style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin:0 0 12px;">Add a spend event</p>
+      <div style="display:grid;grid-template-columns:80px 1fr;gap:10px;margin-bottom:12px;">
+        <div>
+          <p style="font-size:12px;color:var(--color-text-secondary);margin:0 0 4px;">Year</p>
+          <input type="number" id="new-sy" class="sinput" placeholder="e.g. 5" min="1" max="50" style="width:100%;box-sizing:border-box;">
+        </div>
+        <div>
+          <p style="font-size:12px;color:var(--color-text-secondary);margin:0 0 4px;">Label</p>
+          <input type="text" id="new-sl" class="sinput" placeholder="e.g. House down payment" style="width:100%;box-sizing:border-box;">
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--color-text-secondary);margin:0 0 8px;">Amount per portfolio <span style="color:var(--color-text-tertiary)">(leave blank to skip)</span></p>
+      <div id="new-pf-amounts"></div>
+      <button onclick="addSpendEvent()" style="width:100%;padding:9px;font-size:13px;cursor:pointer;border-radius:8px;margin-top:4px;">+ Add spend event</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const PALETTE = ['#185FA5','#1D9E75','#7F77DD','#D85A30','#BA7517','#D4537E','#639922','#0F6E56'];
+let portfolios = [], spendEvents = [], pfCounter = 0, chart = null;
+let currency = 'INR';
+
+function getSymbol() {
+  if (currency === 'INR') return '₹';
+  return (document.getElementById('conv-symbol')?.value || '$').trim();
+}
+function getRate() {
+  if (currency === 'INR') return 1;
+  return parseFloat(document.getElementById('conv-rate')?.value) || 1;
+}
+function convert(v) { return v * getRate(); }
+function fmt(v) {
+  const c = convert(v);
+  const sym = getSymbol();
+  if (Math.abs(c) >= 1e7) return sym + (c/1e7).toFixed(2) + 'Cr';
+  if (Math.abs(c) >= 1e5) return sym + (c/1e5).toFixed(2) + 'L';
+  if (Math.abs(c) >= 1000) return sym + Math.round(c).toLocaleString();
+  return sym + Math.round(c);
+}
+function fmtShort(v) {
+  const c = convert(v);
+  const sym = getSymbol();
+  if (Math.abs(c) >= 1e9) return sym+(c/1e9).toFixed(1)+'B';
+  if (Math.abs(c) >= 1e6) return sym+(c/1e6).toFixed(1)+'M';
+  if (Math.abs(c) >= 1e7) return sym+(c/1e7).toFixed(1)+'Cr';
+  if (Math.abs(c) >= 1e5) return sym+(c/1e5).toFixed(1)+'L';
+  if (Math.abs(c) >= 1000) return sym+(c/1000).toFixed(0)+'k';
+  return sym+Math.round(c);
+}
+
+function setCurrency(cur) {
+  currency = cur;
+  document.getElementById('cur-inr').className = 'cur-btn' + (cur==='INR'?' active':'');
+  document.getElementById('cur-other').className = 'cur-btn' + (cur!=='INR'?' active':'');
+  document.getElementById('conversion-wrap').style.display = cur !== 'INR' ? 'flex' : 'none';
+  renderAll();
+}
+
+function switchTab(tab) {
+  document.getElementById('panel-portfolios').style.display = tab==='portfolios'?'':'none';
+  document.getElementById('panel-spends').style.display = tab==='spends'?'':'none';
+  document.getElementById('tab-portfolios').className = 'tab-btn'+(tab==='portfolios'?' active':'');
+  document.getElementById('tab-spends').className = 'tab-btn'+(tab==='spends'?' active':'');
+}
+
+function computePortfolio(pf) {
+  const r = pf.rate/100, infR = pf.inflation/100;
+  const spendMap = {};
+  spendEvents.forEach(ev => { const amt = ev.amounts[pf.id]||0; if (amt>0&&ev.year>0) spendMap[ev.year]=(spendMap[ev.year]||0)+amt; });
+  let balance = pf.principal, totalDeposited = pf.principal;
+  const balances = [balance];
+  for (let y=1; y<=pf.years; y++) {
+    balance *= (1+r);
+    const deposit = pf.inflateDeposits ? pf.annual*Math.pow(1+infR,y-1) : pf.annual;
+    balance += deposit; totalDeposited += deposit;
+    balance = Math.max(0, balance-(spendMap[y]||0));
+    balances.push(balance);
+  }
+  return { balances, totalDeposited, final: balance, interest: Math.max(0, balance-totalDeposited) };
+}
+
+function updateChart() {
+  if (!portfolios.length) { if (chart){chart.destroy();chart=null;} return; }
+  const maxY = Math.max(...portfolios.map(p=>p.years));
+  const labels = Array.from({length:maxY+1},(_,i)=>i===0?'Now':'Yr '+i);
+  const showTotal = document.getElementById('total-toggle').checked;
+
+  const allBalances = portfolios.map(pf => {
+    const { balances } = computePortfolio(pf);
+    return balances;
+  });
+
+  const datasets = portfolios.map((pf, pi) => ({
+    label: pf.name, borderColor: pf.color, backgroundColor: pf.color+'18',
+    data: labels.map((_,i) => i < allBalances[pi].length ? Math.round(allBalances[pi][i]) : null),
+    fill: false, tension: 0.3, pointRadius: 2, pointHoverRadius: 5, borderWidth: 2
+  }));
+
+  if (showTotal && portfolios.length > 1) {
+    const totalData = labels.map((_,i) => {
+      let sum = 0;
+      portfolios.forEach((pf, pi) => { if (i < allBalances[pi].length) sum += allBalances[pi][i]; });
+      return Math.round(sum);
+    });
+    datasets.push({
+      label: 'Total', borderColor: '#888780', backgroundColor: 'transparent',
+      data: totalData, fill: false, tension: 0.3,
+      pointRadius: 0, pointHoverRadius: 5, borderWidth: 2,
+      borderDash: [6, 3]
+    });
+  }
+
+  const legendEl = document.getElementById('legend');
+  legendEl.innerHTML = portfolios.map(pf =>
+    `<span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:${pf.color};display:inline-block;"></span><span style="color:var(--color-text-primary);font-size:12px;">${pf.name}</span></span>`
+  ).join('');
+  if (showTotal && portfolios.length > 1) {
+    legendEl.innerHTML += `<span style="display:flex;align-items:center;gap:5px;"><span style="width:18px;height:2px;background:#888780;display:inline-block;border-top:2px dashed #888780;"></span><span style="color:var(--color-text-secondary);font-size:12px;">Total</span></span>`;
+  }
+
+  if (chart) { chart.data.labels=labels; chart.data.datasets=datasets; chart.update(); }
+  else {
+    chart = new Chart(document.getElementById('mainChart'), {
+      type: 'line', data: {labels, datasets},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': '+fmt(ctx.raw) } } },
+        scales: {
+          x: { ticks:{autoSkip:true,maxTicksLimit:13,color:'#888'}, grid:{display:false} },
+          y: { ticks:{color:'#888', callback: v=>fmtShort(v)}, grid:{color:'rgba(128,128,128,0.1)'} }
+        }
+      }
+    });
+  }
+}
+
+function updateSummary() {
+  const el = document.getElementById('summary-grid');
+  if (!portfolios.length) { el.innerHTML=''; return; }
+  let totalFinal = 0;
+  let cards = portfolios.map(pf => {
+    const { final } = computePortfolio(pf);
+    totalFinal += final;
+    return `<div class="summary-card" style="border-left:3px solid ${pf.color};border-radius:0 8px 8px 0;"><p class="summary-label">${pf.name}</p><p class="summary-val">${fmt(final)}</p></div>`;
+  }).join('');
+  if (portfolios.length > 1 && document.getElementById('total-toggle').checked) {
+    cards += `<div class="summary-card" style="border-left:3px dashed #888780;border-radius:0 8px 8px 0;"><p class="summary-label">Total</p><p class="summary-val">${fmt(totalFinal)}</p></div>`;
+  }
+  el.innerHTML = cards;
+}
+
+function renderPortfolioCard(pf) {
+  const el = document.getElementById('pf-'+pf.id);
+  if (!el) return;
+  const { totalDeposited, final, interest } = computePortfolio(pf);
+  const sym = getSymbol();
+  el.innerHTML = `
+    <div class="pf-header">
+      <div class="pf-dot" style="background:${pf.color};"></div>
+      <input class="pf-name" value="${pf.name}" onchange="renamePf(${pf.id},this.value)">
+      <button onclick="toggleCollapse(${pf.id})" style="border:none;background:none;cursor:pointer;font-size:13px;color:var(--color-text-secondary);padding:0;">${pf.collapsed?'+ expand':'− collapse'}</button>
+      <button onclick="removePortfolio(${pf.id})" style="border:none;background:none;cursor:pointer;font-size:16px;color:var(--color-text-secondary);padding:0 4px;">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:${pf.collapsed?'0':'12px'};">
+      <div class="summary-card"><p class="summary-label">Final</p><p class="summary-val" style="font-size:15px;">${fmt(final)}</p></div>
+      <div class="summary-card"><p class="summary-label">Deposited</p><p class="summary-val" style="font-size:15px;">${fmt(totalDeposited)}</p></div>
+      <div class="summary-card"><p class="summary-label">Interest</p><p class="summary-val" style="font-size:15px;">${fmt(interest)}</p></div>
+    </div>
+    ${pf.collapsed?'':` 
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;">
+      <div class="pf-row"><label class="pf-label"><span>Initial deposit</span><span class="pf-val">${fmt(pf.principal)}</span></label><input type="range" min="500" max="10000000" step="500" value="${pf.principal}" oninput="updatePf(${pf.id},'principal',+this.value)"></div>
+      <div class="pf-row"><label class="pf-label"><span>Annual deposit</span><span class="pf-val">${fmt(pf.annual)}/yr</span></label><input type="range" min="0" max="2000000" step="1000" value="${pf.annual}" oninput="updatePf(${pf.id},'annual',+this.value)"></div>
+      <div class="pf-row"><label class="pf-label"><span>Interest rate</span><span class="pf-val">${pf.rate.toFixed(1)}%</span></label><input type="range" min="0.5" max="25" step="0.5" value="${pf.rate}" oninput="updatePf(${pf.id},'rate',+this.value)"></div>
+      <div class="pf-row"><label class="pf-label"><span>Inflation rate</span><span class="pf-val">${pf.inflation.toFixed(1)}%</span></label><input type="range" min="0" max="15" step="0.5" value="${pf.inflation}" oninput="updatePf(${pf.id},'inflation',+this.value)"></div>
+      <div class="pf-row"><label class="pf-label"><span>Years</span><span class="pf-val">${pf.years}</span></label><input type="range" min="1" max="50" step="1" value="${pf.years}" oninput="updatePf(${pf.id},'years',+this.value)"></div>
+      <div class="pf-row" style="justify-content:center;padding-top:14px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label class="tog"><input type="checkbox" ${pf.inflateDeposits?'checked':''} onchange="updatePf(${pf.id},'inflateDeposits',this.checked)"><span class="tog-track"></span><span class="tog-thumb"></span></label>
+          <span style="font-size:12px;color:var(--color-text-secondary);">Inflate deposits</span>
+        </div>
+      </div>
+    </div>`}
+  `;
+}
+
+function renderSpendEvents() {
+  const el = document.getElementById('spends-container');
+  if (!spendEvents.length) { el.innerHTML=`<p style="font-size:13px;color:var(--color-text-secondary);margin:0 0 1rem;">No spend events yet.</p>`; return; }
+  el.innerHTML = spendEvents.map((ev,i) => {
+    const pfRows = portfolios.map(pf => {
+      const amt = ev.amounts[pf.id]||0;
+      if (!amt) return '';
+      return `<div class="pf-pill" style="background:${pf.color}18;"><span style="width:8px;height:8px;border-radius:50%;background:${pf.color};display:inline-block;"></span><span style="color:${pf.color};">${pf.name}</span><span style="color:var(--color-text-primary);margin-left:4px;">${fmt(amt)}</span></div>`;
+    }).join('');
+    return `<div class="spend-event-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">
+        <div><p style="font-size:14px;font-weight:500;color:var(--color-text-primary);margin:0 0 2px;">${ev.label}</p><p style="font-size:12px;color:var(--color-text-secondary);margin:0;">Year ${ev.year}</p></div>
+        <button onclick="removeSpendEvent(${i})" style="border:none;background:none;cursor:pointer;font-size:16px;color:var(--color-text-secondary);padding:0;flex-shrink:0;">×</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">${pfRows||'<span style="font-size:12px;color:var(--color-text-secondary);">No amounts set</span>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderNewSpendAmounts() {
+  const el = document.getElementById('new-pf-amounts');
+  if (!portfolios.length) { el.innerHTML=`<p style="font-size:12px;color:var(--color-text-secondary);">Add portfolios first.</p>`; return; }
+  const sym = getSymbol();
+  el.innerHTML = portfolios.map(pf =>
+    `<div class="pf-amount-row">
+      <div class="pf-dot" style="background:${pf.color};"></div>
+      <span style="font-size:13px;color:var(--color-text-primary);min-width:100px;flex:1;">${pf.name}</span>
+      <span style="font-size:13px;color:var(--color-text-secondary);">${sym}</span>
+      <input type="number" id="amt-${pf.id}" class="sinput" placeholder="0" min="0" style="width:110px;text-align:right;">
+    </div>`
+  ).join('');
+}
+
+function addSpendEvent() {
+  const yr = parseInt(document.getElementById('new-sy').value);
+  const lbl = document.getElementById('new-sl').value.trim()||'Spend';
+  if (!yr||yr<1) return;
+  const amounts = {};
+  portfolios.forEach(pf => { const v=parseFloat(document.getElementById('amt-'+pf.id)?.value); if(v>0) amounts[pf.id]=v; });
+  spendEvents.push({year:yr,label:lbl,amounts});
+  spendEvents.sort((a,b)=>a.year-b.year);
+  document.getElementById('new-sy').value='';
+  document.getElementById('new-sl').value='';
+  portfolios.forEach(pf=>{const el=document.getElementById('amt-'+pf.id);if(el)el.value='';});
+  renderAll();
+}
+
+function removeSpendEvent(i) { spendEvents.splice(i,1); renderAll(); }
+
+function renderAll() {
+  portfolios.forEach(pf=>renderPortfolioCard(pf));
+  renderSpendEvents();
+  renderNewSpendAmounts();
+  updateChart();
+  updateSummary();
+}
+
+function addPortfolio() {
+  const id = ++pfCounter;
+  const pf = { id, name:'Portfolio '+id, color:PALETTE[portfolios.length%PALETTE.length], principal:500000, annual:120000, rate:7, inflation:6, years:25, inflateDeposits:true, collapsed:false };
+  portfolios.push(pf);
+  const div = document.createElement('div');
+  div.className='pf-card'; div.id='pf-'+id;
+  document.getElementById('portfolios-container').appendChild(div);
+  renderAll();
+}
+
+function removePortfolio(id) {
+  portfolios=portfolios.filter(p=>p.id!==id);
+  document.getElementById('pf-'+id)?.remove();
+  spendEvents.forEach(ev=>delete ev.amounts[id]);
+  renderAll();
+}
+
+function renamePf(id,val) {
+  const pf=portfolios.find(p=>p.id===id);
+  if(pf){pf.name=val;updateChart();updateSummary();renderSpendEvents();renderNewSpendAmounts();}
+}
+
+function toggleCollapse(id) {
+  const pf=portfolios.find(p=>p.id===id);
+  if(pf){pf.collapsed=!pf.collapsed;renderPortfolioCard(pf);}
+}
+
+function updatePf(id,key,val) {
+  const pf=portfolios.find(p=>p.id===id);
+  if(!pf) return;
+  pf[key]=val;
+  renderPortfolioCard(pf);
+  updateChart();
+  updateSummary();
+}
+
+addPortfolio();
+const id2=++pfCounter;
+portfolios.push({id:id2,name:'Portfolio 2',color:PALETTE[1],principal:500000,annual:200000,rate:12,inflation:6,years:25,inflateDeposits:true,collapsed:false});
+const d2=document.createElement('div'); d2.className='pf-card'; d2.id='pf-'+id2;
+document.getElementById('portfolios-container').appendChild(d2);
+renderAll();
+</script>
