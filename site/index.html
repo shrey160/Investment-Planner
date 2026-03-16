@@ -7,76 +7,105 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+<div class="app-container">
 
-  <div class="app-container">
-
-    <div class="top-bar">
-      <div class="currency-controls">
-        <button class="cur-btn active" id="cur-inr" onclick="setCurrency('INR')">₹ Rupee</button>
-        <button class="cur-btn" id="cur-other" onclick="setCurrency('OTHER')">Custom currency</button>
-      </div>
-      <div id="conversion-wrap" class="conversion-wrap" style="display:none;">
-        <span class="muted-label">₹1 =</span>
-        <input type="number" id="conv-rate" value="0.011" step="0.001" min="0.0001" oninput="renderAll()" />
-        <input type="text" id="conv-symbol" value="$" oninput="renderAll()" placeholder="symbol" />
-        <span class="hint-label">(e.g. 1/91 ≈ 0.011 for USD)</span>
-      </div>
+  <div class="top-bar">
+    <div class="currency-controls">
+      <button class="cur-btn active" id="cur-inr" onclick="setCurrency('INR')">₹ Rupee</button>
+      <button class="cur-btn" id="cur-other" onclick="setCurrency('OTHER')">Custom currency</button>
     </div>
-
-    <div id="summary-grid" class="summary-grid"></div>
-
-    <div style="background: var(--color-bg-card); border: 0.5px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 2rem;">
-      <div class="chart-header">
-        <div id="legend" class="legend"></div>
-        <div class="total-toggle">
-          <label class="tog">
-            <input type="checkbox" id="total-toggle" checked onchange="renderAll()" />
-            <span class="tog-track"></span>
-            <span class="tog-thumb"></span>
-          </label>
-          <span class="muted-label">Show total</span>
-        </div>
-      </div>
-      <div class="chart-wrapper">
-        <canvas id="mainChart"></canvas>
-      </div>
+    <div id="conv-wrap" class="conversion-wrap" style="display:none;">
+      <span class="muted-label">₹1 =</span>
+      <input type="number" id="conv-rate" value="0.011" step="0.001" min="0.0001" oninput="renderAll()" />
+      <input type="text"   id="conv-sym"  value="$" oninput="renderAll()" placeholder="symbol" />
+      <span class="hint-label">(e.g. 1÷91 ≈ 0.011 for USD)</span>
     </div>
-
-    <div class="tab-bar">
-      <button class="tab-btn active" id="tab-portfolios" onclick="switchTab('portfolios')">Portfolios</button>
-      <button class="tab-btn" id="tab-spends" onclick="switchTab('spends')">Major spends</button>
-    </div>
-
-    <div id="panel-portfolios">
-      <div id="portfolios-container"></div>
-      <button class="add-btn" onclick="addPortfolio()">+ Add portfolio</button>
-    </div>
-
-    <div id="panel-spends" style="display:none;">
-      <div id="spends-container"></div>
-
-      <div class="pf-card add-spend-card">
-        <p class="section-title">Add a spend event</p>
-        <div class="spend-form-grid">
-          <div>
-            <p class="field-label">Year</p>
-            <input type="number" id="new-sy" class="sinput" placeholder="e.g. 5" min="1" max="50" />
-          </div>
-          <div>
-            <p class="field-label">Label</p>
-            <input type="text" id="new-sl" class="sinput" placeholder="e.g. House down payment" />
-          </div>
-        </div>
-        <p class="field-label">Amount per portfolio <span class="hint-label">(leave blank to skip)</span></p>
-        <div id="new-pf-amounts"></div>
-        <button class="add-btn" onclick="addSpendEvent()">+ Add spend event</button>
-      </div>
-    </div>
-
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-  <script src="app.js"></script>
+  <div id="summary-grid" class="summary-grid"></div>
 
+  <div class="chart-card">
+    <div class="chart-header">
+      <div id="legend" class="legend"></div>
+      <div class="total-toggle">
+        <label class="tog">
+          <input type="checkbox" id="total-tog" checked onchange="renderAll()" />
+          <span class="tog-track"></span><span class="tog-thumb"></span>
+        </label>
+        <span class="muted-label">Show total</span>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="mainChart"></canvas>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-portfolios" onclick="switchTab('portfolios')">Portfolios</button>
+    <button class="tab-btn"        id="tab-spends"     onclick="switchTab('spends')">Major spends</button>
+    <button class="tab-btn"        id="tab-transfers"  onclick="switchTab('transfers')">Transfers</button>
+  </div>
+
+  <!-- Portfolios panel -->
+  <div id="panel-portfolios">
+    <div id="pf-container"></div>
+    <button class="add-btn" onclick="addPortfolio()">+ Add portfolio</button>
+  </div>
+
+  <!-- Spends panel -->
+  <div id="panel-spends" style="display:none;">
+    <div id="spends-list"></div>
+    <div class="pf-card">
+      <p class="section-title">Add spend event</p>
+      <div class="spend-form-grid">
+        <div>
+          <p class="field-label">Year</p>
+          <input type="number" id="sp-yr"  class="sinput" placeholder="e.g. 5" min="1" max="50" />
+        </div>
+        <div>
+          <p class="field-label">Label</p>
+          <input type="text"   id="sp-lbl" class="sinput" placeholder="e.g. Buy car" />
+        </div>
+      </div>
+      <p class="field-label">Amount per portfolio <span class="hint-label">(leave blank to skip)</span></p>
+      <div id="sp-pf-amounts"></div>
+      <button class="add-btn" onclick="addSpend()">+ Add spend event</button>
+    </div>
+  </div>
+
+  <!-- Transfers panel -->
+  <div id="panel-transfers" style="display:none;">
+    <div id="transfers-list"></div>
+    <div class="pf-card">
+      <p class="section-title">Add transfer</p>
+      <div class="transfer-form-grid">
+        <div>
+          <p class="field-label">Year</p>
+          <input type="number" id="tr-yr"   class="sinput" placeholder="e.g. 10" min="1" max="50" />
+        </div>
+        <div>
+          <p class="field-label">Amount</p>
+          <input type="number" id="tr-amt"  class="sinput" placeholder="e.g. 500000" min="1" />
+        </div>
+        <div>
+          <p class="field-label">From portfolio</p>
+          <select id="tr-from" class="sinput"></select>
+        </div>
+        <div>
+          <p class="field-label">To portfolio</p>
+          <select id="tr-to"   class="sinput"></select>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <p class="field-label">Label <span class="hint-label">(optional)</span></p>
+          <input type="text" id="tr-lbl" class="sinput" placeholder="e.g. Rebalance to equity" style="width:100%;" />
+        </div>
+      </div>
+      <button class="add-btn" onclick="addTransfer()" style="margin-top:10px;">+ Add transfer</button>
+    </div>
+  </div>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
