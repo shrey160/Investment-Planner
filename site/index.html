@@ -4,58 +4,132 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Multi-Portfolio Compound Interest Calculator</title>
+
+  <!--
+    ═══════════════════════════════════════════════════════════════
+    STYLESHEET
+    All visual styling, colour palette, and responsive rules.
+    ═══════════════════════════════════════════════════════════════
+  -->
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     APP SHELL
+     Single max-width container centred on the page.
+     ═══════════════════════════════════════════════════════════════ -->
 <div class="app-container">
 
+  <!-- ───────────────────────────────────────────────────────────
+       TOP BAR
+       Currency controls (left) + CSV export / import (right).
+       The custom-currency fields (#conv-wrap) are hidden until
+       the user clicks "Custom currency".
+       ─────────────────────────────────────────────────────────── -->
   <div class="top-bar">
+
+    <!-- Currency selection -->
     <div class="currency-controls">
-      <button class="cur-btn active" id="cur-inr" onclick="setCurrency('INR')">₹ Rupee</button>
-      <button class="cur-btn" id="cur-other" onclick="setCurrency('OTHER')">Custom currency</button>
+      <button class="cur-btn active" id="cur-inr"   onclick="setCurrency('INR')">₹ Rupee</button>
+      <button class="cur-btn"        id="cur-other" onclick="setCurrency('OTHER')">Custom currency</button>
     </div>
+
+    <!-- Custom currency conversion inputs (hidden by default) -->
     <div id="conv-wrap" class="conversion-wrap" style="display:none;">
       <span class="muted-label">₹1 =</span>
+      <!-- Conversion ratio: divide 1 by the exchange rate, e.g. 1÷91≈0.011 for USD -->
       <input type="number" id="conv-rate" value="0.011" step="0.001" min="0.0001" oninput="renderAll()" />
+      <!-- Currency symbol displayed before all formatted values -->
       <input type="text"   id="conv-sym"  value="$" oninput="renderAll()" placeholder="symbol" />
       <span class="hint-label">(e.g. 1÷91 ≈ 0.011 for USD)</span>
     </div>
+
+    <!-- CSV export — downloads all state as a structured CSV file -->
     <button class="export-btn" onclick="exportCSV()" title="Download all data as CSV">
       ↓ Export CSV
     </button>
+
+    <!-- CSV import — label wraps a hidden file input for styling -->
     <label class="import-btn" title="Restore from a previously exported CSV">
       ↑ Import CSV
       <input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="importCSV(this)" />
     </label>
+
+    <!-- Status message shown briefly after import (success or error) -->
     <div id="import-status" class="import-status" style="display:none;"></div>
   </div>
 
+  <!-- ───────────────────────────────────────────────────────────
+       SUMMARY ROW
+       One stat card per portfolio showing the final balance.
+       Populated dynamically by updateSummary() in app.js.
+       ─────────────────────────────────────────────────────────── -->
   <div id="summary-grid" class="summary-grid"></div>
 
+  <!-- ───────────────────────────────────────────────────────────
+       CHART CARD
+       Line chart (Chart.js canvas) with controls:
+         • Legend — colour-coded portfolio names + event markers
+         • Zoom axis buttons — X / Y / XY scroll-wheel zoom mode
+         • Pause / Withdrawal shading toggles
+         • Reset zoom — appears only when chart is zoomed
+         • Show total — dashed grey sum line toggle
+       ─────────────────────────────────────────────────────────── -->
   <div class="chart-card">
     <div class="chart-header">
+
+      <!-- Legend: populated by updateChart() in app.js -->
       <div id="legend" class="legend"></div>
+
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+
+        <!-- Zoom axis selector: controls which axis scroll/pinch zooms -->
         <div class="zoom-mode-group" title="Scroll wheel / pinch zoom axis">
           <button class="zoom-mode-btn active" id="zm-x"  onclick="setZoomMode('x')">X</button>
           <button class="zoom-mode-btn"        id="zm-y"  onclick="setZoomMode('y')">Y</button>
           <button class="zoom-mode-btn"        id="zm-xy" onclick="setZoomMode('xy')">XY</button>
         </div>
+
+        <!-- Pause shading toggle: shows/hides coloured boxes for deposit-pause periods -->
         <button class="zoom-mode-btn active" id="pause-highlight-btn"
                 onclick="togglePauseHighlight()"
                 title="Show/hide pause period shading on chart"
                 style="border-radius:var(--radius-sm);border:0.5px solid var(--color-border-strong);">
           Pause shading
         </button>
+
+        <!-- Withdrawal shading toggle: shows/hides coloured boxes for withdrawal periods -->
         <button class="zoom-mode-btn active" id="wd-highlight-btn"
                 onclick="toggleWithdrawalHighlight()"
                 title="Show/hide withdrawal period shading on chart"
                 style="border-radius:var(--radius-sm);border:0.5px solid var(--color-border-strong);">
           Withdrawal shading
         </button>
-        <button id="reset-zoom-btn" class="reset-zoom-btn" onclick="resetChartZoom()" style="display:none;" title="Reset zoom to full view">
+
+        <!-- Base year toggle: switches X axis between "Yr N" and actual calendar years.
+             The year input is hidden until the toggle is switched on. -->
+        <button class="zoom-mode-btn" id="base-year-tog-btn"
+                onclick="toggleBaseYear()"
+                title="Show calendar years on X axis"
+                style="border-radius:var(--radius-sm);border:0.5px solid var(--color-border-strong);">
+          Calendar years
+        </button>
+        <div id="base-year-input-wrap" style="display:none;align-items:center;gap:5px;">
+          <span class="muted-label" style="font-size:12px;white-space:nowrap;">Base year</span>
+          <input type="number" id="base-year-input"
+                 class="sinput" style="width:72px;padding:3px 6px;font-size:12px;"
+                 min="1900" max="2200" oninput="setBaseYear()" />
+        </div>
+
+        <!-- Reset zoom: hidden until the user zooms or pans -->
+        <button id="reset-zoom-btn" class="reset-zoom-btn"
+                onclick="resetChartZoom()" style="display:none;"
+                title="Reset zoom to full view">
           ↺ Reset zoom
         </button>
+
+        <!-- Show total line toggle -->
         <div class="total-toggle">
           <label class="tog">
             <input type="checkbox" id="total-tog" checked onchange="renderAll()" />
@@ -63,34 +137,57 @@
           </label>
           <span class="muted-label">Show total</span>
         </div>
+
       </div>
     </div>
+
+    <!-- Chart canvas — Chart.js renders into this element -->
     <div class="chart-wrapper">
       <canvas id="mainChart"></canvas>
     </div>
   </div>
 
+  <!-- ───────────────────────────────────────────────────────────
+       TAB BAR
+       Switches between the five content panels below.
+       switchTab() in app.js shows/hides the matching panel.
+       ─────────────────────────────────────────────────────────── -->
   <div class="tab-bar">
-    <button class="tab-btn active" id="tab-portfolios"   onclick="switchTab('portfolios')">Portfolios</button>
-    <button class="tab-btn"        id="tab-spends"       onclick="switchTab('spends')">Major spends</button>
-    <button class="tab-btn"        id="tab-transfers"    onclick="switchTab('transfers')">Transfers</button>
-    <button class="tab-btn"        id="tab-pauses"       onclick="switchTab('pauses')">Pause deposits</button>
-    <button class="tab-btn"        id="tab-withdrawals"  onclick="switchTab('withdrawals')">Withdrawals</button>
+    <button class="tab-btn active" id="tab-portfolios"  onclick="switchTab('portfolios')">Portfolios</button>
+    <button class="tab-btn"        id="tab-spends"      onclick="switchTab('spends')">Major spends</button>
+    <button class="tab-btn"        id="tab-transfers"   onclick="switchTab('transfers')">Transfers</button>
+    <button class="tab-btn"        id="tab-pauses"      onclick="switchTab('pauses')">Pause deposits</button>
+    <button class="tab-btn"        id="tab-withdrawals" onclick="switchTab('withdrawals')">Withdrawals</button>
   </div>
 
-  <!-- Portfolios panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: PORTFOLIOS
+       Portfolio cards are injected here by addPortfolio() /
+       renderPortfolioCard() in app.js. Each card gets an id of
+       "pf-{id}" so renderPortfolioCard() can find and update it.
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-portfolios">
     <div id="pf-container"></div>
     <button class="add-btn" onclick="addPortfolio()">+ Add portfolio</button>
   </div>
 
-  <!-- Spends panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: MAJOR SPENDS
+       Saved spend events are listed in #spends-list (rendered by
+       renderSpendEvents()). The add-form below builds per-portfolio
+       amount inputs dynamically into #sp-pf-amounts.
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-spends" style="display:none;">
+
+    <!-- Existing spend events list (rendered dynamically) -->
     <div id="spends-list"></div>
+
+    <!-- Add spend form -->
     <div class="pf-card">
       <p class="section-title">Add spend event</p>
       <div class="spend-form-grid">
         <div>
+          <!-- Global year on the shared timeline -->
           <p class="field-label">Year</p>
           <input type="number" id="sp-yr"  class="sinput" placeholder="e.g. 5" min="1" max="50" />
         </div>
@@ -99,104 +196,157 @@
           <input type="text"   id="sp-lbl" class="sinput" placeholder="e.g. Buy car" />
         </div>
       </div>
+      <!-- Per-portfolio amount inputs injected by renderSpendAmounts() -->
       <p class="field-label">Amount per portfolio <span class="hint-label">(leave blank to skip)</span></p>
       <div id="sp-pf-amounts"></div>
       <button class="add-btn" onclick="addSpend()">+ Add spend event</button>
     </div>
   </div>
 
-  <!-- Transfers panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: TRANSFERS
+       Move an amount from one portfolio to another at a given
+       global year. Both dropdown selects are populated by
+       refreshTransferSelects() whenever portfolios change.
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-transfers" style="display:none;">
+
+    <!-- Existing transfers list (rendered dynamically) -->
     <div id="transfers-list"></div>
+
+    <!-- Add transfer form -->
     <div class="pf-card">
       <p class="section-title">Add transfer</p>
       <div class="transfer-form-grid">
         <div>
+          <!-- Global year the money moves between portfolios -->
           <p class="field-label">Year</p>
-          <input type="number" id="tr-yr"   class="sinput" placeholder="e.g. 10" min="1" max="50" />
+          <input type="number" id="tr-yr"  class="sinput" placeholder="e.g. 10" min="1" max="50" />
         </div>
         <div>
+          <!-- Amount to move (stored in base rupee value) -->
           <p class="field-label">Amount</p>
-          <input type="number" id="tr-amt"  class="sinput" placeholder="e.g. 500000" min="1" />
+          <input type="number" id="tr-amt" class="sinput" placeholder="e.g. 500000" min="1" />
         </div>
         <div>
+          <!-- Source portfolio — populated by refreshTransferSelects() -->
           <p class="field-label">From portfolio</p>
           <select id="tr-from" class="sinput"></select>
         </div>
         <div>
+          <!-- Destination portfolio — populated by refreshTransferSelects() -->
           <p class="field-label">To portfolio</p>
-          <select id="tr-to"   class="sinput"></select>
+          <select id="tr-to" class="sinput"></select>
         </div>
         <div style="grid-column: 1 / -1;">
           <p class="field-label">Label <span class="hint-label">(optional)</span></p>
-          <input type="text" id="tr-lbl" class="sinput" placeholder="e.g. Rebalance to equity" style="width:100%;" />
+          <input type="text" id="tr-lbl" class="sinput"
+                 placeholder="e.g. Rebalance to equity" style="width:100%;" />
         </div>
       </div>
       <button class="add-btn" onclick="addTransfer()" style="margin-top:10px;">+ Add transfer</button>
     </div>
   </div>
 
-  <!-- Pauses panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: PAUSE DEPOSITS
+       Pause the annual deposit for a portfolio during a range of
+       global years. Compounding still runs; only the deposit is
+       skipped. Years use range syntax: "3-6, 8, 10-12".
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-pauses" style="display:none;">
+
+    <!-- Existing pause periods list (rendered dynamically) -->
     <div id="pauses-list"></div>
+
+    <!-- Add pause form -->
     <div class="pf-card">
       <p class="section-title">Pause deposits for a portfolio</p>
       <p class="hint-label" style="margin-bottom:12px;">
-        Enter <strong>global</strong> years (same timeline as the chart). Compounding continues during a pause — only the annual deposit is skipped.
+        Enter <strong>global</strong> years (same timeline as the chart).
+        Compounding continues during a pause — only the annual deposit is skipped.
       </p>
       <div class="transfer-form-grid">
         <div>
+          <!-- Portfolio whose deposits are paused — populated by refreshPauseSelect() -->
           <p class="field-label">Portfolio</p>
           <select id="pa-pf" class="sinput" style="width:100%;"></select>
         </div>
         <div>
+          <!-- Year range input: supports "3-6, 8, 10-12" syntax -->
+          <!-- previewPauseYears() parses on input and shows a live preview -->
           <p class="field-label">Years to pause</p>
-          <input type="text" id="pa-years" class="sinput" placeholder="e.g. 3-6, 8, 10-12" style="width:100%;" oninput="previewPauseYears()" />
+          <input type="text" id="pa-years" class="sinput"
+                 placeholder="e.g. 3-6, 8, 10-12" style="width:100%;"
+                 oninput="previewPauseYears()" />
         </div>
         <div style="grid-column: 1 / -1;">
           <p class="field-label">Label <span class="hint-label">(optional)</span></p>
-          <input type="text" id="pa-lbl" class="sinput" placeholder="e.g. Career break" style="width:100%;" />
+          <input type="text" id="pa-lbl" class="sinput"
+                 placeholder="e.g. Career break" style="width:100%;" />
         </div>
       </div>
+      <!-- Live parse preview: shows which years will be paused, or an error message -->
       <p id="pa-parse-preview" class="hint-label" style="margin-top:6px;min-height:16px;"></p>
       <button class="add-btn" onclick="addPause()" style="margin-top:8px;">+ Add pause</button>
     </div>
   </div>
 
-  <!-- Withdrawals panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: WITHDRAWALS
+       A recurring annual withdrawal from a portfolio over a
+       global year range. The amount can be inflation-adjusted
+       each year to preserve real purchasing power.
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-withdrawals" style="display:none;">
+
+    <!-- Existing withdrawal plans list (rendered dynamically) -->
     <div id="withdrawals-list"></div>
+
+    <!-- Add withdrawal form -->
     <div class="pf-card">
       <p class="section-title">Add continuous withdrawal</p>
       <p class="hint-label" style="margin-bottom:12px;">
-        A fixed annual amount withdrawn from a portfolio each year over a range. Optionally inflated each year to preserve purchasing power.
+        A fixed annual amount withdrawn from a portfolio each year over a range.
+        Optionally inflated each year to preserve purchasing power.
       </p>
       <div class="transfer-form-grid">
         <div>
+          <!-- Portfolio to withdraw from — populated by refreshWithdrawalSelect() -->
           <p class="field-label">Portfolio</p>
           <select id="wd-pf" class="sinput" style="width:100%;"></select>
         </div>
         <div>
           <p class="field-label">Label <span class="hint-label">(optional)</span></p>
-          <input type="text" id="wd-lbl" class="sinput" placeholder="e.g. Living expenses" style="width:100%;" />
+          <input type="text" id="wd-lbl" class="sinput"
+                 placeholder="e.g. Living expenses" style="width:100%;" />
         </div>
         <div>
+          <!-- Global year withdrawals begin -->
           <p class="field-label">Start year (global)</p>
-          <input type="number" id="wd-start" class="sinput" placeholder="e.g. 10" min="0" max="99" style="width:100%;" />
+          <input type="number" id="wd-start" class="sinput"
+                 placeholder="e.g. 10" min="0" max="99" style="width:100%;" />
         </div>
         <div>
+          <!-- Global year withdrawals end (inclusive) -->
           <p class="field-label">End year (global)</p>
-          <input type="number" id="wd-end" class="sinput" placeholder="e.g. 30" min="0" max="99" style="width:100%;" />
+          <input type="number" id="wd-end" class="sinput"
+                 placeholder="e.g. 30" min="0" max="99" style="width:100%;" />
         </div>
         <div>
+          <!-- Base annual withdrawal in rupees (or current display currency) -->
           <p class="field-label">Annual withdrawal amount</p>
-          <input type="number" id="wd-amount" class="sinput" placeholder="e.g. 600000" min="1" style="width:100%;" />
+          <input type="number" id="wd-amount" class="sinput"
+                 placeholder="e.g. 600000" min="1" style="width:100%;" />
         </div>
         <div>
+          <!-- Inflation rate applied to the withdrawal when the toggle is on -->
           <p class="field-label">Inflation rate (%) <span class="hint-label">(if adjusting)</span></p>
-          <input type="number" id="wd-infrate" class="sinput" placeholder="e.g. 6" min="0" max="30" step="0.5" style="width:100%;" />
+          <input type="number" id="wd-infrate" class="sinput"
+                 placeholder="e.g. 6" min="0" max="30" step="0.5" style="width:100%;" />
         </div>
         <div style="grid-column: 1 / -1; display:flex; align-items:center; gap:10px; padding-top:4px;">
+          <!-- Toggle: when on, withdrawal grows by the inflation rate each year -->
           <label class="tog">
             <input type="checkbox" id="wd-inflate" checked />
             <span class="tog-track"></span><span class="tog-thumb"></span>
@@ -208,11 +358,24 @@
     </div>
   </div>
 
-</div>
+</div><!-- end .app-container -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     DEPENDENCIES (load order matters)
+     1. Chart.js          — core charting library
+     2. annotation plugin — vertical lines & box overlays on chart
+     3. Hammer.js         — touch gesture support (required by zoom)
+     4. zoom plugin       — scroll/pinch/drag zoom & pan on chart
+     5. app.js            — all application logic (must be last)
+
+     Download each file and place it in the same folder as this
+     index.html. See README.md for the exact download URLs.
+     ═══════════════════════════════════════════════════════════════ -->
 <script src="deplib/chart.umd.js"></script>
 <script src="deplib/chartjs-plugin-annotation.min.js"></script>
 <script src="deplib/hammer.min.js"></script>
 <script src="deplib/chartjs-plugin-zoom.min.js"></script>
 <script src="app.js"></script>
+
 </body>
 </html>
