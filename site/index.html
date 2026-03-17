@@ -44,6 +44,7 @@
     <button class="tab-btn active" id="tab-portfolios" onclick="switchTab('portfolios')">Portfolios</button>
     <button class="tab-btn"        id="tab-spends"     onclick="switchTab('spends')">Major spends</button>
     <button class="tab-btn"        id="tab-transfers"  onclick="switchTab('transfers')">Transfers</button>
+    <button class="tab-btn"        id="tab-pauses"     onclick="switchTab('pauses')">Pause deposits</button>
   </div>
 
   <!-- Portfolios panel -->
@@ -101,6 +102,33 @@
         </div>
       </div>
       <button class="add-btn" onclick="addTransfer()" style="margin-top:10px;">+ Add transfer</button>
+    </div>
+  </div>
+
+  <!-- Pauses panel -->
+  <div id="panel-pauses" style="display:none;">
+    <div id="pauses-list"></div>
+    <div class="pf-card">
+      <p class="section-title">Pause deposits for a portfolio</p>
+      <p class="hint-label" style="margin-bottom:12px;">
+        Compounding continues during a pause — only the annual deposit is skipped.
+      </p>
+      <div class="transfer-form-grid">
+        <div>
+          <p class="field-label">Portfolio</p>
+          <select id="pa-pf" class="sinput" style="width:100%;"></select>
+        </div>
+        <div>
+          <p class="field-label">Years to pause</p>
+          <input type="text" id="pa-years" class="sinput" placeholder="e.g. 3-6, 8, 10-12" style="width:100%;" oninput="previewPauseYears()" />
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <p class="field-label">Label <span class="hint-label">(optional)</span></p>
+          <input type="text" id="pa-lbl" class="sinput" placeholder="e.g. Career break" style="width:100%;" />
+        </div>
+      </div>
+      <p id="pa-parse-preview" class="hint-label" style="margin-top:6px;min-height:16px;"></p>
+      <button class="add-btn" onclick="addPause()" style="margin-top:8px;">+ Add pause</button>
     </div>
   </div>
 

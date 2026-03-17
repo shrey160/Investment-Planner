@@ -1,13 +1,15 @@
 /* ─── State ─────────────────────────────────────────────────────── */
 const PALETTE = ['#185FA5','#1D9E75','#7F77DD','#D85A30','#BA7517','#D4537E','#639922','#0F6E56'];
 
-let portfolios  = [];
-let spendEvents = [];
-let transfers   = [];
-let pfCounter   = 0;
-let trCounter   = 0;
-let chart       = null;
-let currency    = 'INR';
+let portfolios   = [];
+let spendEvents  = [];
+let transfers    = [];
+let pausePeriods = [];   // { id, pfId, years: Set<number>, label, raw }
+let pfCounter    = 0;
+let trCounter    = 0;
+let paCounter    = 0;
+let chart        = null;
+let currency     = 'INR';
 
 /* ─── Currency helpers ──────────────────────────────────────────── */
 function getSymbol() {
@@ -46,11 +48,12 @@ function setCurrency(cur) {
 
 /* ─── Tab switching ─────────────────────────────────────────────── */
 function switchTab(tab) {
-  ['portfolios', 'spends', 'transfers'].forEach(t => {
+  ['portfolios', 'spends', 'transfers', 'pauses'].forEach(t => {
     document.getElementById('panel-' + t).style.display = t === tab ? '' : 'none';
     document.getElementById('tab-' + t).className = 'tab-btn' + (t === tab ? ' active' : '');
   });
   if (tab === 'transfers') refreshTransferSelects();
+  if (tab === 'pauses')    refreshPauseSelect();
 }
 
 /* ─── Portfolio computation ─────────────────────────────────────── */
@@ -77,19 +80,28 @@ function computePortfolio(pf, maxYear) {
     if (tr.to   === pf.id) transferMap[tr.year] = (transferMap[tr.year] || 0) + tr.amount;
   });
 
+  // Build set of paused years for this portfolio
+  const pausedYears = new Set();
+  pausePeriods.forEach(pa => {
+    if (pa.pfId === pf.id) pa.years.forEach(y => pausedYears.add(y));
+  });
+
   const limit = maxYear !== undefined ? maxYear : pf.years;
   let balance = pf.principal, totalDeposited = pf.principal;
   const balances = [balance];
 
   for (let y = 1; y <= limit; y++) {
     if (y <= pf.years) {
-      // Active: compound, deposit, apply spend and transfer
+      // Active: always compound
       balance *= (1 + r);
-      const deposit = pf.inflateDeposits
-        ? pf.annual * Math.pow(1 + infR, y - 1)
-        : pf.annual;
-      balance        += deposit;
-      totalDeposited += deposit;
+      // Deposit only if not paused this year
+      if (!pausedYears.has(y)) {
+        const deposit = pf.inflateDeposits
+          ? pf.annual * Math.pow(1 + infR, y - 1)
+          : pf.annual;
+        balance        += deposit;
+        totalDeposited += deposit;
+      }
       balance = Math.max(0, balance - (spendMap[y]    || 0));
       balance = Math.max(0, balance + (transferMap[y] || 0));
     }
@@ -456,6 +468,118 @@ function addTransfer() {
 }
 function removeTransfer(i) { transfers.splice(i, 1); renderAll(); }
 
+/* ─── Pauses ─────────────────────────────────────────────────────── */
+
+/**
+ * Parse a string like "3-6, 8, 10-12" into a sorted array of year numbers.
+ * Returns { years: number[], error: string|null }
+ */
+function parseYearRanges(raw) {
+  const years = new Set();
+  const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+  for (const part of parts) {
+    const range = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    const single = part.match(/^(\d+)$/);
+    if (range) {
+      const from = parseInt(range[1]), to = parseInt(range[2]);
+      if (from > to) return { years: [], error: `"${part}": start must be ≤ end` };
+      for (let y = from; y <= to; y++) years.add(y);
+    } else if (single) {
+      years.add(parseInt(single[1]));
+    } else {
+      return { years: [], error: `"${part}" is not a valid year or range` };
+    }
+  }
+  return { years: [...years].sort((a, b) => a - b), error: null };
+}
+
+/** Format a sorted year array back into compact range notation */
+function formatYears(arr) {
+  if (!arr.length) return '';
+  const ranges = [];
+  let start = arr[0], end = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] === end + 1) { end = arr[i]; }
+    else { ranges.push(start === end ? `${start}` : `${start}–${end}`); start = end = arr[i]; }
+  }
+  ranges.push(start === end ? `${start}` : `${start}–${end}`);
+  return 'Yr ' + ranges.join(', ');
+}
+
+function refreshPauseSelect() {
+  const sel = document.getElementById('pa-pf');
+  if (!sel) return;
+  const prev = parseInt(sel.value);
+  sel.innerHTML = portfolios.map(pf =>
+    `<option value="${pf.id}"${pf.id === prev ? ' selected' : ''}>${pf.name}</option>`
+  ).join('');
+}
+
+function renderPauses() {
+  const el = document.getElementById('pauses-list');
+  if (!el) return;
+  if (!pausePeriods.length) {
+    el.innerHTML = `<p class="no-items">No pause periods yet. Add one below.</p>`;
+    return;
+  }
+  el.innerHTML = pausePeriods.map((pa, i) => {
+    const pf = portfolios.find(p => p.id === pa.pfId);
+    if (!pf) return '';
+    const yearStr = formatYears([...pa.years].sort((a, b) => a - b));
+    return `<div class="event-card">
+      <div class="event-header">
+        <div>
+          <p class="event-title">${pa.label}</p>
+          <p class="event-year">${yearStr}</p>
+        </div>
+        <button class="icon-btn" onclick="removePause(${i})">×</button>
+      </div>
+      <div class="pills-row">
+        <div class="pf-pill" style="background:${pf.color}18;">
+          <span class="pf-pill-dot" style="background:${pf.color};"></span>
+          <span style="color:${pf.color};">${pf.name}</span>
+        </div>
+        <span style="font-size:12px;color:var(--color-text-secondary);">deposits paused</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addPause() {
+  const pfId = parseInt(document.getElementById('pa-pf').value);
+  const raw  = document.getElementById('pa-years').value.trim();
+  const lbl  = document.getElementById('pa-lbl').value.trim() || 'Pause';
+  const prev = document.getElementById('pa-parse-preview');
+
+  if (!raw) { prev.textContent = 'Please enter at least one year.'; prev.style.color = '#c0392b'; return; }
+
+  const { years, error } = parseYearRanges(raw);
+  if (error) { prev.textContent = 'Error: ' + error; prev.style.color = '#c0392b'; return; }
+  if (!years.length) { prev.textContent = 'No valid years found.'; prev.style.color = '#c0392b'; return; }
+
+  pausePeriods.push({ id: ++paCounter, pfId, years: new Set(years), label: lbl, raw });
+  document.getElementById('pa-years').value = '';
+  document.getElementById('pa-lbl').value   = '';
+  prev.textContent = '';
+  renderAll();
+}
+
+function removePause(i) {
+  pausePeriods.splice(i, 1);
+  renderAll();
+}
+
+/* Live preview while typing years */
+function previewPauseYears() {
+  const raw  = document.getElementById('pa-years')?.value.trim();
+  const prev = document.getElementById('pa-parse-preview');
+  if (!prev) return;
+  if (!raw) { prev.textContent = ''; return; }
+  const { years, error } = parseYearRanges(raw);
+  if (error) { prev.textContent = 'Error: ' + error; prev.style.color = '#c0392b'; }
+  else { prev.textContent = years.length ? 'Pausing: ' + formatYears(years) : ''; prev.style.color = 'var(--color-text-secondary)'; }
+}
+
 /* ─── Portfolio CRUD ────────────────────────────────────────────── */
 function addPortfolio(opts = {}) {
   const id       = ++pfCounter;
@@ -485,7 +609,8 @@ function removePortfolio(id) {
   portfolios = portfolios.filter(p => p.id !== id);
   document.getElementById('pf-' + id)?.remove();
   spendEvents.forEach(ev => delete ev.amounts[id]);
-  transfers = transfers.filter(tr => tr.from !== id && tr.to !== id);
+  transfers    = transfers.filter(tr => tr.from !== id && tr.to !== id);
+  pausePeriods = pausePeriods.filter(pa => pa.pfId !== id);
   renderAll();
 }
 
@@ -499,6 +624,8 @@ function renamePf(id, val) {
   renderSpendAmounts();
   renderTransfers();
   refreshTransferSelects();
+  renderPauses();
+  refreshPauseSelect();
 }
 
 function toggleCollapse(id) {
@@ -522,6 +649,8 @@ function renderAll() {
   renderSpendAmounts();
   renderTransfers();
   refreshTransferSelects();
+  renderPauses();
+  refreshPauseSelect();
   updateChart();
   updateSummary();
 }
