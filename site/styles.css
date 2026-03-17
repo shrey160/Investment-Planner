@@ -93,8 +93,9 @@ body {
 .legend-item { display: flex; align-items: center; gap: 5px; color: var(--color-text); font-size: 12px; }
 .legend-dot  { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
 .legend-dash { width: 18px; border-top: 2px dashed var(--color-total); display: inline-block; }
-.legend-spend-marker { width: 2px; height: 12px; background: #D85A30; display: inline-block; border-radius: 1px; flex-shrink: 0; }
-.legend-pause-marker { width: 12px; height: 10px; background: rgba(127,119,221,0.18); border: 1px dashed rgba(127,119,221,0.55); border-radius: 2px; display: inline-block; flex-shrink: 0; }
+.legend-spend-marker    { width: 2px; height: 12px; background: #D85A30; display: inline-block; border-radius: 1px; flex-shrink: 0; }
+.legend-pause-marker    { width: 12px; height: 10px; background: rgba(127,119,221,0.18); border: 1px dashed rgba(127,119,221,0.55); border-radius: 2px; display: inline-block; flex-shrink: 0; }
+.legend-withdrawal-marker { width: 12px; height: 10px; background: rgba(29,158,117,0.12); border: 1.5px dashed rgba(29,158,117,0.6); border-radius: 2px; display: inline-block; flex-shrink: 0; }
 .total-toggle { display: flex; align-items: center; gap: 8px; }
 .chart-wrapper { position: relative; width: 100%; height: 300px; }
 

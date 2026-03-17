@@ -14,7 +14,8 @@ let chart        = null;
 let currency     = 'INR';
 let zoomMode     = 'x';   // 'x' | 'y' | 'xy'
 let _importing   = false; // suppresses renderAll during batch import
-let showPauseHighlight = true; // toggles pause shading on chart
+let showPauseHighlight      = true; // toggles pause shading on chart
+let showWithdrawalHighlight = true; // toggles withdrawal shading on chart
 
 /* ─── Currency helpers ──────────────────────────────────────────── */
 function getSymbol() {
@@ -251,6 +252,12 @@ function updateChart() {
            <span class="legend-pause-marker"></span>
            <span style="color:var(--color-text-secondary);">Paused</span>
          </span>`
+      : '') +
+    (withdrawals.length && showWithdrawalHighlight
+      ? `<span class="legend-item">
+           <span class="legend-withdrawal-marker"></span>
+           <span style="color:var(--color-text-secondary);">Withdrawal</span>
+         </span>`
       : '');
 
   // ── Annotations ──────────────────────────────────────────────────
@@ -293,20 +300,16 @@ function updateChart() {
       const pf = portfolios.find(p => p.id === pa.pfId);
       if (!pf) return;
 
-      // Safely get the years as an array regardless of storage type
       const yearsArr = (pa.years instanceof Set)
         ? [...pa.years]
         : Array.isArray(pa.years) ? [...pa.years] : [];
       if (!yearsArr.length) return;
 
-      // Convert portfolio hex color to rgba
-      const hex = pf.color;
       const toRgba = (h, a) => {
         const n = parseInt(h.replace('#', ''), 16);
         return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
       };
 
-      // Group sorted years into contiguous runs → one box per run
       const sorted = yearsArr.map(Number).sort((a, b) => a - b);
       const runs = [];
       let s = sorted[0], e = sorted[0];
@@ -322,8 +325,8 @@ function updateChart() {
           type:            'box',
           xMin:            from === 0 ? 'Now' : 'Yr ' + from,
           xMax:            'Yr ' + Math.min(to + 1, maxY),
-          backgroundColor: toRgba(hex, 0.10),
-          borderColor:     toRgba(hex, 0.35),
+          backgroundColor: toRgba(pf.color, 0.10),
+          borderColor:     toRgba(pf.color, 0.35),
           borderWidth:     1,
           borderDash:      [3, 3],
           label: {
@@ -332,12 +335,55 @@ function updateChart() {
             position:        { x: 'center', y: 'start' },
             yAdjust:         6,
             backgroundColor: 'transparent',
-            color:           toRgba(hex, 0.65),
+            color:           toRgba(pf.color, 0.65),
             font:            { size: 10, weight: 'normal' },
             padding:         0,
           }
         };
       });
+    });
+  }
+
+  // Withdrawal highlight boxes — only when toggle is on
+  if (showWithdrawalHighlight && withdrawals.length) {
+    const toRgba = (h, a) => {
+      const n = parseInt(h.replace('#', ''), 16);
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    };
+
+    withdrawals.forEach((wd, idx) => {
+      const pf = portfolios.find(p => p.id === wd.pfId);
+      if (!pf) return;
+      const from = Math.max(0, wd.startYear);
+      const to   = Math.min(wd.endYear, maxY);
+      if (from > maxY) return;
+
+      // Show the base and (if inflated) the final year amount in the label
+      const wdInfR = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
+      const lastAmt = wd.baseAmount * Math.pow(1 + wdInfR, wd.endYear - wd.startYear);
+      const amtLabel = wd.inflateWithdrawal && lastAmt !== wd.baseAmount
+        ? `${fmt(wd.baseAmount)}→${fmt(lastAmt)}/yr`
+        : `${fmt(wd.baseAmount)}/yr`;
+
+      annotations['wd_' + wd.id + '_' + idx] = {
+        type:            'box',
+        xMin:            from === 0 ? 'Now' : 'Yr ' + from,
+        xMax:            'Yr ' + Math.min(to + 1, maxY),
+        backgroundColor: toRgba(pf.color, 0.07),
+        borderColor:     toRgba(pf.color, 0.5),
+        borderWidth:     1.5,
+        borderDash:      [6, 3],
+        label: {
+          display:         true,
+          content:         [pf.name, amtLabel],
+          position:        { x: 'center', y: 'end' },
+          yAdjust:         -6,
+          backgroundColor: 'transparent',
+          color:           toRgba(pf.color, 0.75),
+          font:            { size: 10, weight: 'normal' },
+          padding:         0,
+        }
+      };
     });
   }
 
@@ -384,6 +430,19 @@ function updateChart() {
               if (pausedNames.length) {
                 lines.push('', '— Deposit paused —');
                 pausedNames.forEach(n => lines.push(n));
+              }
+
+              // Active withdrawals at this year
+              const activeWds = withdrawals.filter(wd => yr >= wd.startYear && yr <= wd.endYear);
+              if (activeWds.length) {
+                lines.push('', '— Withdrawals —');
+                activeWds.forEach(wd => {
+                  const pf = portfolios.find(p => p.id === wd.pfId);
+                  if (!pf) return;
+                  const wdInfR = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
+                  const amt = wd.baseAmount * Math.pow(1 + wdInfR, yr - wd.startYear);
+                  lines.push(`${pf.name} (${wd.label}): −${fmt(amt)}`);
+                });
               }
 
               return lines;
@@ -449,6 +508,13 @@ function togglePauseHighlight() {
   showPauseHighlight = !showPauseHighlight;
   const btn = document.getElementById('pause-highlight-btn');
   if (btn) btn.className = 'zoom-mode-btn' + (showPauseHighlight ? ' active' : '');
+  updateChart();
+}
+
+function toggleWithdrawalHighlight() {
+  showWithdrawalHighlight = !showWithdrawalHighlight;
+  const btn = document.getElementById('wd-highlight-btn');
+  if (btn) btn.className = 'zoom-mode-btn' + (showWithdrawalHighlight ? ' active' : '');
   updateChart();
 }
 
