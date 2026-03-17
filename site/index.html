@@ -35,12 +35,17 @@
   <div class="chart-card">
     <div class="chart-header">
       <div id="legend" class="legend"></div>
-      <div class="total-toggle">
-        <label class="tog">
-          <input type="checkbox" id="total-tog" checked onchange="renderAll()" />
-          <span class="tog-track"></span><span class="tog-thumb"></span>
-        </label>
-        <span class="muted-label">Show total</span>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button id="reset-zoom-btn" class="reset-zoom-btn" onclick="resetChartZoom()" style="display:none;" title="Reset zoom to full view">
+          ↺ Reset zoom
+        </button>
+        <div class="total-toggle">
+          <label class="tog">
+            <input type="checkbox" id="total-tog" checked onchange="renderAll()" />
+            <span class="tog-track"></span><span class="tog-thumb"></span>
+          </label>
+          <span class="muted-label">Show total</span>
+        </div>
       </div>
     </div>
     <div class="chart-wrapper">
@@ -49,10 +54,11 @@
   </div>
 
   <div class="tab-bar">
-    <button class="tab-btn active" id="tab-portfolios" onclick="switchTab('portfolios')">Portfolios</button>
-    <button class="tab-btn"        id="tab-spends"     onclick="switchTab('spends')">Major spends</button>
-    <button class="tab-btn"        id="tab-transfers"  onclick="switchTab('transfers')">Transfers</button>
-    <button class="tab-btn"        id="tab-pauses"     onclick="switchTab('pauses')">Pause deposits</button>
+    <button class="tab-btn active" id="tab-portfolios"   onclick="switchTab('portfolios')">Portfolios</button>
+    <button class="tab-btn"        id="tab-spends"       onclick="switchTab('spends')">Major spends</button>
+    <button class="tab-btn"        id="tab-transfers"    onclick="switchTab('transfers')">Transfers</button>
+    <button class="tab-btn"        id="tab-pauses"       onclick="switchTab('pauses')">Pause deposits</button>
+    <button class="tab-btn"        id="tab-withdrawals"  onclick="switchTab('withdrawals')">Withdrawals</button>
   </div>
 
   <!-- Portfolios panel -->
@@ -140,8 +146,56 @@
     </div>
   </div>
 
+  <!-- Withdrawals panel -->
+  <div id="panel-withdrawals" style="display:none;">
+    <div id="withdrawals-list"></div>
+    <div class="pf-card">
+      <p class="section-title">Add continuous withdrawal</p>
+      <p class="hint-label" style="margin-bottom:12px;">
+        A fixed annual amount withdrawn from a portfolio each year over a range. Optionally inflated each year to preserve purchasing power.
+      </p>
+      <div class="transfer-form-grid">
+        <div>
+          <p class="field-label">Portfolio</p>
+          <select id="wd-pf" class="sinput" style="width:100%;"></select>
+        </div>
+        <div>
+          <p class="field-label">Label <span class="hint-label">(optional)</span></p>
+          <input type="text" id="wd-lbl" class="sinput" placeholder="e.g. Living expenses" style="width:100%;" />
+        </div>
+        <div>
+          <p class="field-label">Start year (global)</p>
+          <input type="number" id="wd-start" class="sinput" placeholder="e.g. 10" min="0" max="99" style="width:100%;" />
+        </div>
+        <div>
+          <p class="field-label">End year (global)</p>
+          <input type="number" id="wd-end" class="sinput" placeholder="e.g. 30" min="0" max="99" style="width:100%;" />
+        </div>
+        <div>
+          <p class="field-label">Annual withdrawal amount</p>
+          <input type="number" id="wd-amount" class="sinput" placeholder="e.g. 600000" min="1" style="width:100%;" />
+        </div>
+        <div>
+          <p class="field-label">Inflation rate (%) <span class="hint-label">(if adjusting)</span></p>
+          <input type="number" id="wd-infrate" class="sinput" placeholder="e.g. 6" min="0" max="30" step="0.5" style="width:100%;" />
+        </div>
+        <div style="grid-column: 1 / -1; display:flex; align-items:center; gap:10px; padding-top:4px;">
+          <label class="tog">
+            <input type="checkbox" id="wd-inflate" checked />
+            <span class="tog-track"></span><span class="tog-thumb"></span>
+          </label>
+          <span class="muted-label">Adjust withdrawal amount for inflation each year</span>
+        </div>
+      </div>
+      <button class="add-btn" onclick="addWithdrawal()" style="margin-top:10px;">+ Add withdrawal plan</button>
+    </div>
+  </div>
+
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

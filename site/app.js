@@ -5,9 +5,11 @@ let portfolios   = [];
 let spendEvents  = [];
 let transfers    = [];
 let pausePeriods = [];   // { id, pfId, years: Set<number>, label, raw }
+let withdrawals  = [];   // { id, pfId, startYear, endYear, baseAmount, inflationRate, inflateWithdrawal, label }
 let pfCounter    = 0;
 let trCounter    = 0;
 let paCounter    = 0;
+let wdCounter    = 0;
 let chart        = null;
 let currency     = 'INR';
 
@@ -48,12 +50,13 @@ function setCurrency(cur) {
 
 /* ─── Tab switching ─────────────────────────────────────────────── */
 function switchTab(tab) {
-  ['portfolios', 'spends', 'transfers', 'pauses'].forEach(t => {
+  ['portfolios', 'spends', 'transfers', 'pauses', 'withdrawals'].forEach(t => {
     document.getElementById('panel-' + t).style.display = t === tab ? '' : 'none';
     document.getElementById('tab-' + t).className = 'tab-btn' + (t === tab ? ' active' : '');
   });
-  if (tab === 'transfers') refreshTransferSelects();
-  if (tab === 'pauses')    refreshPauseSelect();
+  if (tab === 'transfers')  refreshTransferSelects();
+  if (tab === 'pauses')     refreshPauseSelect();
+  if (tab === 'withdrawals') refreshWithdrawalSelect();
 }
 
 /* ─── Portfolio computation ─────────────────────────────────────── */
@@ -69,7 +72,6 @@ function computePortfolio(pf, maxYear) {
   const limit  = maxYear !== undefined ? maxYear : start + pf.years;
 
   // All events use GLOBAL years on the shared timeline.
-  // ev.year (spend), tr.year (transfer), pa.years (pause) are all global.
 
   // Spend withdrawals keyed by GLOBAL year
   const spendMap = {};
@@ -89,6 +91,19 @@ function computePortfolio(pf, maxYear) {
   const pausedGlobalYears = new Set();
   pausePeriods.forEach(pa => {
     if (pa.pfId === pf.id) pa.years.forEach(y => pausedGlobalYears.add(y));
+  });
+
+  // Continuous withdrawal map keyed by GLOBAL year
+  // Each active withdrawal contributes its inflation-adjusted amount for each year in [startYear..endYear]
+  const withdrawalMap = {};
+  withdrawals.forEach(wd => {
+    if (wd.pfId !== pf.id) return;
+    const wdInfR = (wd.inflateWithdrawal ? (wd.inflationRate || 0) : 0) / 100;
+    for (let g = wd.startYear; g <= wd.endYear && g <= limit; g++) {
+      const yearsIn = g - wd.startYear;   // 0-indexed: first year = no inflation yet
+      const amount  = wd.baseAmount * Math.pow(1 + wdInfR, yearsIn);
+      withdrawalMap[g] = (withdrawalMap[g] || 0) + amount;
+    }
   });
 
   const balances = new Array(limit + 1).fill(null);
@@ -114,11 +129,14 @@ function computePortfolio(pf, maxYear) {
       }
 
       // Spends and transfers at this global year
-      balance = Math.max(0, balance - (spendMap[g]    || 0));
-      balance = Math.max(0, balance + (transferMap[g] || 0));
+      balance = Math.max(0, balance - (spendMap[g]       || 0));
+      balance = Math.max(0, balance + (transferMap[g]    || 0));
+      // Continuous withdrawals
+      balance = Math.max(0, balance - (withdrawalMap[g]  || 0));
     } else {
-      // Closed: no compounding, no deposits — transfers still apply
-      balance = Math.max(0, balance + (transferMap[g] || 0));
+      // Closed: no compounding, no deposits — transfers and withdrawals still apply
+      balance = Math.max(0, balance + (transferMap[g]   || 0));
+      balance = Math.max(0, balance - (withdrawalMap[g] || 0));
     }
 
     balances[g] = Math.round(balance);
@@ -214,8 +232,51 @@ function updateChart() {
            <span class="legend-dash"></span>
            <span style="color:var(--color-text-secondary);">Total</span>
          </span>`
+      : '') +
+    (spendEvents.length
+      ? `<span class="legend-item">
+           <span class="legend-spend-marker"></span>
+           <span style="color:var(--color-text-secondary);">Spend</span>
+         </span>`
       : '');
 
+  // ── Build spend annotations ──────────────────────────────────────
+  // Group all spend events by global year, collect labels for each year
+  const spendByYear = {};
+  spendEvents.forEach(ev => {
+    if (!spendByYear[ev.year]) spendByYear[ev.year] = [];
+    spendByYear[ev.year].push(ev.label);
+  });
+
+  const annotations = {};
+  Object.entries(spendByYear).forEach(([yr, labels]) => {
+    const y = parseInt(yr);
+    if (y < 0 || y > maxY) return;
+    const xLabel = y === 0 ? 'Now' : 'Yr ' + y;
+    const labelText = labels.join(', ');
+    annotations['spend_' + y] = {
+      type:        'line',
+      scaleID:     'x',
+      value:       xLabel,
+      borderColor: '#D85A30',
+      borderWidth: 1.5,
+      borderDash:  [4, 3],
+      label: {
+        display:         true,
+        content:         labelText,
+        position:        'start',
+        yAdjust:         -6,
+        backgroundColor: 'rgba(216,90,48,0.12)',
+        color:           '#D85A30',
+        font:            { size: 10, weight: 'normal' },
+        padding:         { x: 5, y: 3 },
+        borderRadius:    3,
+      }
+    };
+  });
+
+  const zoomBtn = document.getElementById('reset-zoom-btn');
+  if (zoomBtn) zoomBtn.style.display = 'none';
   if (chart) { chart.destroy(); chart = null; }
   chart = new Chart(document.getElementById('mainChart'), {
     type: 'line',
@@ -227,7 +288,42 @@ function updateChart() {
         legend:  { display: false },
         tooltip: {
           filter: item => !item.dataset.label.endsWith('_tail'),
-          callbacks: { label: ctx => ctx.dataset.label + ': ' + fmt(ctx.raw) }
+          callbacks: {
+            label: ctx => ctx.dataset.label + ': ' + fmt(ctx.raw),
+            afterBody: ctx => {
+              // Show any spend events at this year in the tooltip
+              const yr = ctx[0]?.dataIndex;
+              if (yr === undefined) return [];
+              const evs = spendEvents.filter(ev => ev.year === yr);
+              if (!evs.length) return [];
+              return ['', '— Spends this year —',
+                ...evs.map(ev => {
+                  const parts = portfolios
+                    .filter(pf => ev.amounts[pf.id] > 0)
+                    .map(pf => `${pf.name}: −${fmt(ev.amounts[pf.id])}`);
+                  return `${ev.label}` + (parts.length ? ': ' + parts.join(', ') : '');
+                })
+              ];
+            }
+          }
+        },
+        annotation: { annotations },
+        zoom: {
+          pan: {
+            enabled:    true,
+            mode:       'x',
+            threshold:  5,
+            onPan:      () => showResetZoom(),
+          },
+          zoom: {
+            wheel:   { enabled: true, speed: 0.08 },
+            pinch:   { enabled: true },
+            mode:    'x',
+            onZoom:  () => showResetZoom(),
+          },
+          limits: {
+            x: { minRange: 2 }   // don't zoom in beyond 2-year window
+          }
         }
       },
       scales: {
@@ -236,6 +332,19 @@ function updateChart() {
       }
     }
   });
+}
+
+function showResetZoom() {
+  const btn = document.getElementById('reset-zoom-btn');
+  if (btn) btn.style.display = '';
+}
+
+function resetChartZoom() {
+  if (chart) {
+    chart.resetZoom();
+    const btn = document.getElementById('reset-zoom-btn');
+    if (btn) btn.style.display = 'none';
+  }
 }
 
 /* ─── Summary row ───────────────────────────────────────────────── */
@@ -725,6 +834,7 @@ function removePortfolio(id) {
   spendEvents.forEach(ev => delete ev.amounts[id]);
   transfers    = transfers.filter(tr => tr.from !== id && tr.to !== id);
   pausePeriods = pausePeriods.filter(pa => pa.pfId !== id);
+  withdrawals  = withdrawals.filter(wd => wd.pfId !== id);
   renderAll();
 }
 
@@ -740,6 +850,8 @@ function renamePf(id, val) {
   refreshTransferSelects();
   renderPauses();
   refreshPauseSelect();
+  renderWithdrawals();
+  refreshWithdrawalSelect();
 }
 
 function toggleCollapse(id) {
@@ -878,7 +990,7 @@ function _applyImportedRows(rows) {
   let evKey = null, evRows = [];
   eventRows.forEach(r => {
     const first = (r[0] || '').trim();
-    if (['Spend events', 'Transfers', 'Deposit pauses'].includes(first)) {
+    if (['Spend events', 'Transfers', 'Deposit pauses', 'Continuous withdrawals'].includes(first)) {
       if (evKey) eventSections[evKey] = evRows;
       evKey  = first;
       evRows = [];
@@ -902,9 +1014,11 @@ function _applyImportedRows(rows) {
   spendEvents  = [];
   transfers    = [];
   pausePeriods = [];
+  withdrawals  = [];
   pfCounter    = 0;
   trCounter    = 0;
   paCounter    = 0;
+  wdCounter    = 0;
 
   // ── Create portfolios ────────────────────────────────────────────
   settingsData.forEach(r => {
@@ -974,6 +1088,26 @@ function _applyImportedRows(rows) {
       if (!yrs.length) continue;
       pausePeriods.push({ id: ++paCounter, pfId, years: new Set(yrs), label: lbl, raw });
     }
+  }
+
+  // ── Parse continuous withdrawals ─────────────────────────────────
+  // Header: Portfolio | Label | Start year | End year | Base amount | Inflation rate (%) | Inflate withdrawal
+  const wdRows = eventSections['Continuous withdrawals'] || [];
+  if (wdRows.length && (wdRows[0][0] || '') !== '(none)') {
+    for (let i = 1; i < wdRows.length; i++) {
+      const r    = wdRows[i];
+      if (!r[0]) continue;
+      const pfId      = nameToId[r[0]];
+      const lbl       = r[1] || 'Withdrawal';
+      const startYear = parseInt(r[2]);
+      const endYear   = parseInt(r[3]);
+      const baseAmt   = parseFloat(r[4]) * invRate;
+      const infRate   = parseFloat(r[5]) || 0;
+      const inflate   = (r[6] || '').trim().toLowerCase() !== 'no';
+      if (!pfId || isNaN(startYear) || isNaN(endYear) || isNaN(baseAmt) || baseAmt <= 0) continue;
+      withdrawals.push({ id: ++wdCounter, pfId, startYear, endYear, baseAmount: baseAmt, inflationRate: infRate, inflateWithdrawal: inflate, label: lbl });
+    }
+    withdrawals.sort((a, b) => a.startYear - b.startYear);
   }
 
   // ── Restore currency display ─────────────────────────────────────
@@ -1106,6 +1240,26 @@ function exportCSV() {
     eventRows.push(['(none)']);
   }
 
+  eventRows.push([]);
+  eventRows.push(['Continuous withdrawals']);
+  if (withdrawals.length) {
+    eventRows.push(['Portfolio', 'Label', 'Start year', 'End year', 'Base amount', 'Inflation rate (%)', 'Inflate withdrawal']);
+    withdrawals.forEach(wd => {
+      const pf = portfolios.find(p => p.id === wd.pfId);
+      eventRows.push([
+        pf?.name || wd.pfId,
+        wd.label,
+        wd.startYear,
+        wd.endYear,
+        cv(wd.baseAmount),
+        wd.inflationRate,
+        wd.inflateWithdrawal ? 'Yes' : 'No'
+      ]);
+    });
+  } else {
+    eventRows.push(['(none)']);
+  }
+
   // ── Combine into one CSV with section separators ─────────────────
   function rowsToCSV(rows) {
     return rows.map(r =>
@@ -1142,6 +1296,95 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
+/* ─── Withdrawals ────────────────────────────────────────────────── */
+
+function refreshWithdrawalSelect() {
+  const sel = document.getElementById('wd-pf');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = portfolios.map(pf =>
+    `<option value="${pf.id}"${pf.id == prev ? ' selected' : ''}>${pf.name}</option>`
+  ).join('');
+}
+
+function renderWithdrawals() {
+  const el = document.getElementById('withdrawals-list');
+  if (!el) return;
+
+  if (!withdrawals.length) {
+    el.innerHTML = `<p class="no-items">No withdrawal plans yet. Add one below.</p>`;
+    return;
+  }
+
+  el.innerHTML = withdrawals.map((wd, i) => {
+    const pf = portfolios.find(p => p.id === wd.pfId);
+    if (!pf) return '';
+
+    // Show the projected first and last withdrawal amounts
+    const wdInfR = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
+    const lastAmt = wd.baseAmount * Math.pow(1 + wdInfR, wd.endYear - wd.startYear);
+    const durationYrs = wd.endYear - wd.startYear + 1;
+
+    return `<div class="event-card">
+      <div class="event-header">
+        <div>
+          <p class="event-title">${wd.label}</p>
+          <p class="event-year">Yr ${wd.startYear} – Yr ${wd.endYear} &nbsp;·&nbsp; ${durationYrs} yr${durationYrs !== 1 ? 's' : ''}</p>
+        </div>
+        <button class="icon-btn" onclick="removeWithdrawal(${i})">×</button>
+      </div>
+      <div class="pills-row" style="margin-bottom:8px;">
+        <div class="pf-pill" style="background:${pf.color}18;">
+          <span class="pf-pill-dot" style="background:${pf.color};"></span>
+          <span style="color:${pf.color};">${pf.name}</span>
+        </div>
+        <span style="font-size:12px;color:var(--color-text-secondary);">
+          ${fmt(wd.baseAmount)}/yr
+          ${wd.inflateWithdrawal
+            ? `→ ${fmt(lastAmt)}/yr by Yr ${wd.endYear} <span style="color:var(--color-text-hint)">(+${wd.inflationRate}%/yr)</span>`
+            : '<span style="color:var(--color-text-hint)">(fixed)</span>'}
+        </span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addWithdrawal() {
+  const pfId      = portfolios.find(p => p.id == document.getElementById('wd-pf')?.value)?.id;
+  const startYear = parseInt(document.getElementById('wd-start').value);
+  const endYear   = parseInt(document.getElementById('wd-end').value);
+  const baseAmt   = parseFloat(document.getElementById('wd-amount').value);
+  const infRate   = parseFloat(document.getElementById('wd-infrate').value) || 0;
+  const inflate   = document.getElementById('wd-inflate').checked;
+  const lbl       = document.getElementById('wd-lbl').value.trim() || 'Withdrawal';
+
+  if (!pfId || isNaN(startYear) || isNaN(endYear) || isNaN(baseAmt)
+      || startYear < 0 || endYear < startYear || baseAmt <= 0) return;
+
+  withdrawals.push({
+    id: ++wdCounter,
+    pfId, startYear, endYear,
+    baseAmount: baseAmt,
+    inflationRate: infRate,
+    inflateWithdrawal: inflate,
+    label: lbl
+  });
+  withdrawals.sort((a, b) => a.startYear - b.startYear);
+
+  // Clear form
+  document.getElementById('wd-start').value  = '';
+  document.getElementById('wd-end').value    = '';
+  document.getElementById('wd-amount').value = '';
+  document.getElementById('wd-lbl').value    = '';
+
+  renderAll();
+}
+
+function removeWithdrawal(i) {
+  withdrawals.splice(i, 1);
+  renderAll();
+}
+
 /* ─── Full re-render ────────────────────────────────────────────── */
 function renderAll() {
   portfolios.forEach(pf => renderPortfolioCard(pf));
@@ -1151,6 +1394,8 @@ function renderAll() {
   refreshTransferSelects();
   renderPauses();
   refreshPauseSelect();
+  renderWithdrawals();
+  refreshWithdrawalSelect();
   updateChart();
   updateSummary();
 }
