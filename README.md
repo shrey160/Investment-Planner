@@ -1,12 +1,12 @@
 # Multi-Portfolio Compound Interest Calculator
 
-An interactive investment calculator that lets you model, compare, and stress-test multiple portfolios on a shared timeline — with inflation-adjusted deposits, staggered start years, major spend events, cross-portfolio transfers, deposit pauses, and multi-currency display.
+An interactive investment calculator that lets you model, compare, and stress-test multiple portfolios on a shared timeline — with inflation-adjusted deposits, staggered start years, major spend events, cross-portfolio transfers, deposit pauses, CSV export and import, and multi-currency display.
 
 ---
 
 ## Getting started
 
-Open `index.html` in any modern browser. No build step or server required — just drop all three files (`index.html`, `styles.css`, `app.js`) in the same folder.
+Open `index.html` in any modern browser. No build step or server required — keep `index.html`, `styles.css`, and `app.js` in the same folder.
 
 Two portfolios are pre-loaded. Every change — slider, toggle, typed value, or event — updates the chart and all summary cards instantly.
 
@@ -14,7 +14,7 @@ Two portfolios are pre-loaded. Every change — slider, toggle, typed value, or 
 
 ## Shared timeline
 
-All year numbers across the app refer to the **global timeline** shown on the chart. Year 0 is "now". If a portfolio starts at year 5, then a spend at year 8 hits that portfolio during its third active year. Pauses, spends, and transfers all use this same global year scale so they line up consistently on the chart.
+All year numbers across the app refer to the **global timeline** shown on the chart. Year 0 is "now". If a portfolio starts at year 5, then a spend at year 8 hits that portfolio during its third active year. Pauses, spends, and transfers all use the same global year scale so they line up consistently on the chart.
 
 ---
 
@@ -28,7 +28,7 @@ All year numbers across the app refer to the **global timeline** shown on the ch
 
 ### Renaming a portfolio
 
-Click directly on the portfolio name and type to rename it. Names update everywhere — the chart legend, summary cards, transfer dropdowns, and pause cards.
+Click directly on the portfolio name and type to rename it. Names update everywhere — the chart legend, summary cards, transfer dropdowns, pause cards, and spend event inputs.
 
 ### Portfolio settings
 
@@ -82,10 +82,14 @@ Each spend event has a **global year**, a **label**, and a **per-portfolio amoun
 
 1. Switch to **Major spends**.
 2. Enter the **global year** and a **label**.
-3. Enter withdrawal amounts next to whichever portfolios should be affected.
+3. Enter withdrawal amounts next to whichever portfolios should be affected (leave others blank).
 4. Click **+ Add spend event**.
 
-Spend events are listed as cards showing which portfolios are affected and by how much. Click **×** to remove one.
+### Editing a spend event
+
+Every saved spend event is fully editable. Click **Edit amounts** on any event card to expand an inline editor showing amount inputs for **all current portfolios** — including any added after the event was originally created. You can also update the label and year directly on the card. Click **Save changes** to apply.
+
+Portfolios with an amount set show as coloured pills. Portfolios with no amount show as muted grey pills so you can see at a glance what is and isn't set.
 
 ---
 
@@ -148,7 +152,33 @@ Examples:
   AED  →  1 ÷ 25  ≈ 0.040
 ```
 
-All values update instantly. Click **₹ Rupee** at any time to reset.
+Click **₹ Rupee** at any time to reset.
+
+---
+
+## Export and import
+
+### Exporting data
+
+Click **↓ Export CSV** in the top bar to download `portfolio_data.csv`. The file contains three sections:
+
+- **Year-by-year balances** — one row per global year, one column per portfolio, plus a Total column. Values are in the currently selected display currency.
+- **Portfolio summary** — full settings for each portfolio and their final results (balance, deposited, interest earned, interest %).
+- **Events** — spend events (with per-portfolio amounts), transfers, and deposit pauses.
+
+All values with commas or quotes are properly escaped, so the file opens cleanly in Excel, Google Sheets, and Numbers.
+
+### Importing data
+
+Click **↑ Import CSV** in the top bar and select a CSV file that was previously exported from this tool. The importer restores:
+
+- All portfolios with their full settings
+- All spend events with per-portfolio amounts
+- All transfers
+- All deposit pause periods
+- The currency setting (symbol and conversion rate)
+
+The current session is fully replaced by the imported data. If the import fails — for example if the file is corrupted or not in the expected format — a red error message appears describing what went wrong. On success a green confirmation shows how many portfolios were loaded.
 
 ---
 
@@ -169,8 +199,10 @@ The app has no dependencies beyond Chart.js, which is loaded from a CDN in `inde
 - **Model staggered strategies** — set one portfolio to start now and another to start in year 10 (e.g. when a child starts school) to plan for future commitments.
 - **Compare risk vs reward** — set one portfolio to a conservative 6% FD rate and another to 12% equity and watch how the gap widens over time.
 - **Stress-test withdrawals** — add a spend event to both portfolios at the same year and see which strategy weathers it better.
+- **Update spends as you add portfolios** — if you add a new portfolio after creating a spend event, open the event card and hit Edit amounts to include the new portfolio.
 - **Simulate a career break** — add a pause period for the years you expect to stop contributing, and compare the long-term cost against uninterrupted contributions.
 - **Rebalance across portfolios** — use a transfer to move funds from a maturing conservative portfolio into an aggressive one at a key year.
+- **Save and restore sessions** — use Export CSV to save your current setup, and Import CSV to restore it later or share it with someone else.
 - **Inflate deposits** — toggle "Inflate deposits" on and off to see how much it matters to grow contributions in line with inflation over 20–30 years.
 - **Rename everything** — giving portfolios and events real names (e.g. "Nifty 50 SIP", "Child's college fund", "Home purchase") makes the comparison far easier to read.
 - **Collapse settled portfolios** — once a portfolio is configured, collapse it to reduce clutter while you work on others.
