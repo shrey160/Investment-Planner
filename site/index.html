@@ -20,6 +20,14 @@
       <input type="text"   id="conv-sym"  value="$" oninput="renderAll()" placeholder="symbol" />
       <span class="hint-label">(e.g. 1÷91 ≈ 0.011 for USD)</span>
     </div>
+    <button class="export-btn" onclick="exportCSV()" title="Download all data as CSV">
+      ↓ Export CSV
+    </button>
+    <label class="import-btn" title="Restore from a previously exported CSV">
+      ↑ Import CSV
+      <input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="importCSV(this)" />
+    </label>
+    <div id="import-status" class="import-status" style="display:none;"></div>
   </div>
 
   <div id="summary-grid" class="summary-grid"></div>

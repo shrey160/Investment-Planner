@@ -179,6 +179,18 @@ body {
 }
 .event-title { font-size: 14px; font-weight: 500; color: var(--color-text); margin-bottom: 2px; }
 .event-year  { font-size: 12px; color: var(--color-text-secondary); }
+
+.event-title-input {
+  font-weight: 500;
+  font-size: 13px;
+  width: 100%;
+  background: transparent;
+  border-color: transparent;
+  padding: 2px 4px;
+  margin-bottom: 2px;
+}
+.event-title-input:hover { border-color: var(--color-border); }
+.event-title-input:focus { border-color: var(--color-accent); background: var(--color-bg-secondary); }
 .pills-row   { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .pf-pill {
   display: flex; align-items: center; gap: 6px;
@@ -241,6 +253,64 @@ select.sinput {
 .cur-btn.active {
   background: var(--color-accent); color: #fff;
   border-color: var(--color-accent); font-weight: 500;
+}
+
+/* ─── Export button ─────────────────────────────────────────────── */
+.export-btn {
+  margin-left: auto;
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.export-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+/* ─── Import button ─────────────────────────────────────────────── */
+.import-btn {
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.15s;
+  white-space: nowrap;
+  user-select: none;
+}
+.import-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+.import-status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.import-status.success {
+  background: #e6f4ea;
+  color: #1e6e38;
+  border: 0.5px solid #a8d5b5;
+}
+.import-status.error {
+  background: #fce8e8;
+  color: #a32d2d;
+  border: 0.5px solid #f09595;
+}
+
+@media (prefers-color-scheme: dark) {
+  .import-status.success { background: #1a3325; color: #6fcf97; border-color: #2d5a40; }
+  .import-status.error   { background: #3a1a1a; color: #f09595; border-color: #6b2c2c; }
 }
 
 /* ─── Form inputs ───────────────────────────────────────────────── */

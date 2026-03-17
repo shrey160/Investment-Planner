@@ -377,25 +377,114 @@ function renderSpendEvents() {
     el.innerHTML = `<p class="no-items">No spend events yet. Add one below.</p>`;
     return;
   }
+
   el.innerHTML = spendEvents.map((ev, i) => {
-    const pills = portfolios.map(pf => {
-      const a = ev.amounts[pf.id] || 0;
-      if (!a) return '';
-      return `<div class="pf-pill" style="background:${pf.color}18;">
-        <span class="pf-pill-dot" style="background:${pf.color};"></span>
-        <span style="color:${pf.color};">${pf.name}</span>
-        <span style="color:var(--color-text);margin-left:4px;">${fmt(a)}</span>
-      </div>`;
-    }).join('') || `<span class="hint-label">No amounts set</span>`;
+    const sym = getSymbol();
+
+    // Pills: show all portfolios that have a non-zero amount
+    const activePills = portfolios
+      .filter(pf => ev.amounts[pf.id] > 0)
+      .map(pf => `
+        <div class="pf-pill" style="background:${pf.color}18;">
+          <span class="pf-pill-dot" style="background:${pf.color};"></span>
+          <span style="color:${pf.color};">${pf.name}</span>
+          <span style="color:var(--color-text);margin-left:4px;">${fmt(ev.amounts[pf.id])}</span>
+        </div>`)
+      .join('');
+
+    // Unset portfolios shown as muted pills
+    const unsetPills = portfolios
+      .filter(pf => !(ev.amounts[pf.id] > 0))
+      .map(pf => `
+        <div class="pf-pill" style="background:var(--color-bg-tertiary);opacity:0.6;">
+          <span class="pf-pill-dot" style="background:${pf.color};"></span>
+          <span style="color:var(--color-text-secondary);">${pf.name}</span>
+          <span style="color:var(--color-text-hint);margin-left:3px;">—</span>
+        </div>`)
+      .join('');
+
+    // Editable amount rows for all portfolios
+    const amountInputs = portfolios.map(pf => `
+      <div class="pf-amount-row" style="margin-bottom:5px;">
+        <div class="pf-dot" style="background:${pf.color};"></div>
+        <span class="pf-amount-name">${pf.name}</span>
+        <span class="muted-label" style="font-size:12px;">${sym}</span>
+        <input type="number" id="se-${i}-${pf.id}" class="sinput"
+               value="${ev.amounts[pf.id] > 0 ? ev.amounts[pf.id] : ''}"
+               placeholder="0" min="0" style="width:110px;text-align:right;">
+      </div>`).join('');
 
     return `<div class="event-card">
       <div class="event-header">
-        <div><p class="event-title">${ev.label}</p><p class="event-year">Year ${ev.year}</p></div>
+        <div style="flex:1;min-width:0;">
+          <input class="event-title-input sinput"
+                 value="${ev.label}"
+                 id="se-lbl-${i}"
+                 style="font-weight:500;font-size:13px;width:100%;margin-bottom:2px;"
+                 placeholder="Label" />
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;color:var(--color-text-secondary);">Year</span>
+            <input type="number" id="se-yr-${i}" class="sinput"
+                   value="${ev.year}" min="1" max="99"
+                   style="width:60px;font-size:11px;padding:2px 6px;" />
+          </div>
+        </div>
         <button class="icon-btn" onclick="removeSpendEvent(${i})">×</button>
       </div>
-      <div class="pills-row">${pills}</div>
+
+      <div class="pills-row" style="margin-bottom:8px;">
+        ${activePills || ''}${unsetPills}
+      </div>
+
+      <details style="margin-top:4px;">
+        <summary style="font-size:12px;color:var(--color-text-secondary);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:4px;">
+          <span id="se-arrow-${i}" style="font-size:10px;transition:transform .15s;">▶</span>
+          Edit amounts
+        </summary>
+        <div style="margin-top:10px;">
+          ${amountInputs}
+          <button class="add-btn" onclick="saveSpendEvent(${i})" style="margin-top:6px;padding:7px;">
+            Save changes
+          </button>
+        </div>
+      </details>
     </div>`;
   }).join('');
+
+  // Rotate arrow on open/close
+  spendEvents.forEach((_, i) => {
+    const det = document.querySelector(`#spends-list details:nth-child(${i + 1})`);
+    if (!det) return;
+    det.addEventListener('toggle', () => {
+      const arrow = document.getElementById('se-arrow-' + i);
+      if (arrow) arrow.style.transform = det.open ? 'rotate(90deg)' : '';
+    });
+  });
+}
+
+function saveSpendEvent(i) {
+  const ev  = spendEvents[i];
+  if (!ev) return;
+
+  // Read updated year and label
+  const yrEl  = document.getElementById('se-yr-'  + i);
+  const lblEl = document.getElementById('se-lbl-' + i);
+  const yr    = parseInt(yrEl?.value);
+  const lbl   = lblEl?.value.trim() || ev.label;
+  if (!isNaN(yr) && yr > 0) ev.year = yr;
+  ev.label = lbl;
+
+  // Read updated amounts for all current portfolios
+  const newAmounts = {};
+  portfolios.forEach(pf => {
+    const inp = document.getElementById(`se-${i}-${pf.id}`);
+    const v   = parseFloat(inp?.value);
+    if (!isNaN(v) && v > 0) newAmounts[pf.id] = v;
+  });
+  ev.amounts = newAmounts;
+
+  spendEvents.sort((a, b) => a.year - b.year);
+  renderAll();
 }
 
 function renderSpendAmounts() {
@@ -665,6 +754,392 @@ function updatePf(id, key, val) {
   renderPortfolioCard(pf);
   updateChart();
   updateSummary();
+}
+
+/* ─── CSV Import ────────────────────────────────────────────────── */
+
+/**
+ * Parse a CSV string respecting quoted fields (including embedded commas/newlines).
+ * Returns an array of string arrays.
+ */
+function parseCSVText(text) {
+  const rows = [];
+  let row = [], field = '', inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (inQuote) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }
+      else if (ch === '"')            { inQuote = false; }
+      else                            { field += ch; }
+    } else {
+      if      (ch === '"')  { inQuote = true; }
+      else if (ch === ',')  { row.push(field.trim()); field = ''; }
+      else if (ch === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; }
+      else if (ch === '\r') { /* skip */ }
+      else                  { field += ch; }
+    }
+  }
+  row.push(field.trim());
+  if (row.some(c => c !== '')) rows.push(row);
+  return rows;
+}
+
+function showImportStatus(msg, isError = false) {
+  const el = document.getElementById('import-status');
+  el.textContent = msg;
+  el.className = 'import-status ' + (isError ? 'error' : 'success');
+  el.style.display = '';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  // Reset the input so the same file can be re-imported
+  input.value = '';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const rows = parseCSVText(e.target.result);
+      _applyImportedRows(rows);
+    } catch (err) {
+      showImportStatus('Import failed: ' + err.message, true);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function _applyImportedRows(rows) {
+  // Split into sections by looking for the === SECTION === sentinel lines
+  const sections = {};
+  let currentKey = null, currentRows = [];
+
+  rows.forEach(row => {
+    const first = (row[0] || '').trim();
+    if (first.startsWith('=== ') && first.endsWith(' ===')) {
+      if (currentKey) sections[currentKey] = currentRows;
+      currentKey  = first.replace(/^=== | ===$/g, '');
+      currentRows = [];
+    } else {
+      currentRows.push(row);
+    }
+  });
+  if (currentKey) sections[currentKey] = currentRows;
+
+  // We need the PORTFOLIO SUMMARY section to restore settings
+  const summaryKey = Object.keys(sections).find(k => k.includes('PORTFOLIO SUMMARY'));
+  if (!summaryKey) throw new Error('Could not find "PORTFOLIO SUMMARY" section in the file.');
+
+  const summaryRows = sections[summaryKey].filter(r => r.some(c => c));
+
+  // ── Parse currency from the BALANCES section header ─────────────
+  const balanceKey  = Object.keys(sections).find(k => k.includes('YEAR-BY-YEAR'));
+  let importRate    = 1;
+  let importSymbol  = '₹';
+
+  if (balanceKey) {
+    // First data row: "Currency: ₹ (rate: 1)"  or  "Currency: $ (rate: 0.011)"
+    const balRows   = sections[balanceKey];
+    const currRow   = balRows.find(r => (r[0] || '').startsWith('Currency:'));
+    if (currRow) {
+      const m = currRow[0].match(/Currency:\s*(.+?)\s*\(rate:\s*([\d.]+)\)/);
+      if (m) { importSymbol = m[1].trim(); importRate = parseFloat(m[2]) || 1; }
+    }
+  }
+
+  // Inverse of the export rate: stored values were multiplied by rate, so divide to get back INR
+  const invRate = importRate > 0 ? 1 / importRate : 1;
+
+  // ── Parse portfolio settings ─────────────────────────────────────
+  // Rows: heading row "Portfolio settings", header row, then one row per portfolio
+  let settingsStart = -1;
+  summaryRows.forEach((r, i) => {
+    if ((r[0] || '').trim() === 'Portfolio settings') settingsStart = i;
+  });
+  if (settingsStart === -1) throw new Error('Missing "Portfolio settings" block.');
+
+  // Header:  Name | Initial deposit | Annual deposit | Rate (%) | Inflation (%) | Years | Start year | Inflate deposits
+  const settingsHeader = summaryRows[settingsStart + 1];
+  const settingsData   = [];
+  for (let i = settingsStart + 2; i < summaryRows.length; i++) {
+    const r = summaryRows[i];
+    if (!r[0] || r[0].trim() === '' || r[0].trim() === 'Portfolio results') break;
+    settingsData.push(r);
+  }
+  if (!settingsData.length) throw new Error('No portfolio data found in the settings block.');
+
+  // ── Parse events section ─────────────────────────────────────────
+  const eventsKey  = Object.keys(sections).find(k => k.includes('EVENTS'));
+  const eventRows  = eventsKey ? sections[eventsKey].filter(r => r.some(c => c)) : [];
+
+  // Split event rows into sub-sections by their heading rows
+  const eventSections = {};
+  let evKey = null, evRows = [];
+  eventRows.forEach(r => {
+    const first = (r[0] || '').trim();
+    if (['Spend events', 'Transfers', 'Deposit pauses'].includes(first)) {
+      if (evKey) eventSections[evKey] = evRows;
+      evKey  = first;
+      evRows = [];
+    } else {
+      evRows.push(r);
+    }
+  });
+  if (evKey) eventSections[evKey] = evRows;
+
+  // ── Build portfolio name → temp ID map (used to link events) ────
+  // We'll create portfolios in order and record the new IDs by name
+  const nameToId = {};
+
+  // ── Reset state and rebuild ──────────────────────────────────────
+  // Remove all existing portfolio DOM nodes
+  portfolios.forEach(pf => {
+    const el = document.getElementById('pf-' + pf.id);
+    if (el) el.remove();
+  });
+  portfolios   = [];
+  spendEvents  = [];
+  transfers    = [];
+  pausePeriods = [];
+  pfCounter    = 0;
+  trCounter    = 0;
+  paCounter    = 0;
+
+  // ── Create portfolios ────────────────────────────────────────────
+  settingsData.forEach(r => {
+    const name            = r[0] || 'Portfolio';
+    const principal       = parseFloat(r[1]) * invRate || 500000;
+    const annual          = parseFloat(r[2]) * invRate || 120000;
+    const rate            = parseFloat(r[3]) || 7;
+    const inflation       = parseFloat(r[4]) || 6;
+    const years           = parseInt(r[5])   || 25;
+    const startYear       = parseInt(r[6])   || 0;
+    const inflateDeposits = (r[7] || '').trim().toLowerCase() !== 'no';
+
+    const pf = addPortfolio({ name, principal, annual, rate, inflation, years, startYear, inflateDeposits });
+    nameToId[name] = pf.id;
+  });
+
+  // ── Parse spend events ───────────────────────────────────────────
+  const spendRows = eventSections['Spend events'] || [];
+  if (spendRows.length && (spendRows[0][0] || '') !== '(none)') {
+    const header = spendRows[0]; // Year, Label, Portfolio1, Portfolio2, ...
+    for (let i = 1; i < spendRows.length; i++) {
+      const r   = spendRows[i];
+      if (!r[0]) continue;
+      const yr  = parseInt(r[0]);
+      const lbl = r[1] || 'Spend';
+      if (isNaN(yr)) continue;
+      const amounts = {};
+      for (let j = 2; j < header.length; j++) {
+        const pfName = header[j];
+        const id     = nameToId[pfName];
+        const v      = parseFloat(r[j]) * invRate;
+        if (id && !isNaN(v) && v > 0) amounts[id] = v;
+      }
+      spendEvents.push({ year: yr, label: lbl, amounts });
+    }
+    spendEvents.sort((a, b) => a.year - b.year);
+  }
+
+  // ── Parse transfers ──────────────────────────────────────────────
+  const trRows = eventSections['Transfers'] || [];
+  if (trRows.length && (trRows[0][0] || '') !== '(none)') {
+    for (let i = 1; i < trRows.length; i++) {
+      const r = trRows[i];
+      if (!r[0]) continue;
+      const yr     = parseInt(r[0]);
+      const lbl    = r[1] || 'Transfer';
+      const fromId = nameToId[r[2]];
+      const toId   = nameToId[r[3]];
+      const amt    = parseFloat(r[4]) * invRate;
+      if (isNaN(yr) || !fromId || !toId || isNaN(amt) || amt <= 0) continue;
+      transfers.push({ id: ++trCounter, year: yr, from: fromId, to: toId, amount: amt, label: lbl });
+    }
+    transfers.sort((a, b) => a.year - b.year);
+  }
+
+  // ── Parse pause periods ──────────────────────────────────────────
+  const paRows = eventSections['Deposit pauses'] || [];
+  if (paRows.length && (paRows[0][0] || '') !== '(none)') {
+    for (let i = 1; i < paRows.length; i++) {
+      const r    = paRows[i];
+      if (!r[0]) continue;
+      const pfId = nameToId[r[0]];
+      const lbl  = r[1] || 'Pause';
+      const raw  = r[2] || '';
+      if (!pfId || !raw) continue;
+      const yrs  = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      if (!yrs.length) continue;
+      pausePeriods.push({ id: ++paCounter, pfId, years: new Set(yrs), label: lbl, raw });
+    }
+  }
+
+  // ── Restore currency display ─────────────────────────────────────
+  if (importRate !== 1) {
+    currency = 'OTHER';
+    document.getElementById('cur-inr').className   = 'cur-btn';
+    document.getElementById('cur-other').className = 'cur-btn active';
+    document.getElementById('conv-wrap').style.display = 'flex';
+    const rateInput = document.getElementById('conv-rate');
+    const symInput  = document.getElementById('conv-sym');
+    if (rateInput) rateInput.value = importRate;
+    if (symInput)  symInput.value  = importSymbol;
+  } else {
+    currency = 'INR';
+    document.getElementById('cur-inr').className   = 'cur-btn active';
+    document.getElementById('cur-other').className = 'cur-btn';
+    document.getElementById('conv-wrap').style.display = 'none';
+  }
+
+  renderAll();
+  showImportStatus(`Imported ${portfolios.length} portfolio${portfolios.length > 1 ? 's' : ''} successfully.`);
+}
+
+/* ─── CSV Export ────────────────────────────────────────────────── */
+function exportCSV() {
+  if (!portfolios.length) return;
+
+  const sym  = getSymbol();
+  const rate = getRate();
+  const maxY = Math.max(...portfolios.map(p => (p.startYear || 0) + p.years));
+
+  // Convert a raw rupee value to display currency, plain number (no symbol)
+  const cv = v => v !== null && v !== undefined ? (v * rate).toFixed(2) : '';
+
+  // ── Sheet 1: Year-by-year balances ──────────────────────────────
+  const allResults = portfolios.map(pf => computePortfolio(pf, maxY));
+
+  const balanceRows = [];
+
+  // Header row
+  const balanceHeader = ['Year', ...portfolios.map(p => p.name)];
+  if (portfolios.length > 1) balanceHeader.push('Total');
+  balanceRows.push(balanceHeader);
+
+  // Currency row
+  const currencyRow = [`Currency: ${sym} (rate: ${rate})`, ...portfolios.map(() => ''), portfolios.length > 1 ? '' : ''];
+  balanceRows.push(currencyRow);
+
+  // Data rows — one per global year
+  for (let y = 0; y <= maxY; y++) {
+    const label = y === 0 ? 'Now' : `Year ${y}`;
+    const vals  = allResults.map(r => cv(r.balances[y]));
+    const row   = [label, ...vals];
+    if (portfolios.length > 1) {
+      const total = allResults.reduce((s, r) => s + (r.balances[y] ?? 0), 0);
+      // Only show total for years where at least one portfolio has started
+      const anyActive = allResults.some(r => r.balances[y] !== null && r.balances[y] !== undefined);
+      row.push(anyActive ? cv(total) : '');
+    }
+    balanceRows.push(row);
+  }
+
+  // ── Sheet 2: Portfolio summary ───────────────────────────────────
+  const summaryRows = [];
+  summaryRows.push(['Portfolio settings']);
+  summaryRows.push(['Name', 'Initial deposit', 'Annual deposit', 'Rate (%)', 'Inflation (%)', 'Years', 'Start year', 'Inflate deposits']);
+  portfolios.forEach(pf => {
+    summaryRows.push([
+      pf.name,
+      cv(pf.principal),
+      cv(pf.annual),
+      pf.rate.toFixed(1),
+      pf.inflation.toFixed(1),
+      pf.years,
+      pf.startYear || 0,
+      pf.inflateDeposits ? 'Yes' : 'No'
+    ]);
+  });
+
+  summaryRows.push([]);
+  summaryRows.push(['Portfolio results']);
+  summaryRows.push(['Name', 'Final balance', 'Total deposited', 'Interest earned', 'Interest %']);
+  portfolios.forEach((pf, i) => {
+    const r = allResults[i];
+    const pct = r.totalDeposited > 0
+      ? ((r.interest / r.totalDeposited) * 100).toFixed(1) + '%'
+      : '0%';
+    summaryRows.push([pf.name, cv(r.final), cv(r.totalDeposited), cv(r.interest), pct]);
+  });
+
+  // ── Sheet 3: Events ──────────────────────────────────────────────
+  const eventRows = [];
+  eventRows.push(['Spend events']);
+  if (spendEvents.length) {
+    const spendHeader = ['Year', 'Label', ...portfolios.map(p => p.name)];
+    eventRows.push(spendHeader);
+    spendEvents.forEach(ev => {
+      eventRows.push([
+        ev.year, ev.label,
+        ...portfolios.map(pf => cv(ev.amounts[pf.id] || 0))
+      ]);
+    });
+  } else {
+    eventRows.push(['(none)']);
+  }
+
+  eventRows.push([]);
+  eventRows.push(['Transfers']);
+  if (transfers.length) {
+    eventRows.push(['Year', 'Label', 'From', 'To', 'Amount']);
+    transfers.forEach(tr => {
+      const from = portfolios.find(p => p.id === tr.from)?.name || tr.from;
+      const to   = portfolios.find(p => p.id === tr.to)?.name   || tr.to;
+      eventRows.push([tr.year, tr.label, from, to, cv(tr.amount)]);
+    });
+  } else {
+    eventRows.push(['(none)']);
+  }
+
+  eventRows.push([]);
+  eventRows.push(['Deposit pauses']);
+  if (pausePeriods.length) {
+    eventRows.push(['Portfolio', 'Label', 'Global years paused']);
+    pausePeriods.forEach(pa => {
+      const pf  = portfolios.find(p => p.id === pa.pfId);
+      const yrs = [...pa.years].sort((a, b) => a - b).join(', ');
+      eventRows.push([pf?.name || pa.pfId, pa.label, yrs]);
+    });
+  } else {
+    eventRows.push(['(none)']);
+  }
+
+  // ── Combine into one CSV with section separators ─────────────────
+  function rowsToCSV(rows) {
+    return rows.map(r =>
+      r.map(cell => {
+        const s = String(cell ?? '');
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+          ? `"${s.replace(/"/g, '""')}"`
+          : s;
+      }).join(',')
+    ).join('\n');
+  }
+
+  const separator = '\n\n';
+  const csv = [
+    '=== YEAR-BY-YEAR BALANCES (' + sym + ' ' + (rate !== 1 ? `rate:${rate}` : 'INR') + ') ===',
+    rowsToCSV(balanceRows),
+    separator,
+    '=== PORTFOLIO SUMMARY ===',
+    rowsToCSV(summaryRows),
+    separator,
+    '=== EVENTS ===',
+    rowsToCSV(eventRows)
+  ].join('\n');
+
+  // ── Trigger download ─────────────────────────────────────────────
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'portfolio_data.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /* ─── Full re-render ────────────────────────────────────────────── */
