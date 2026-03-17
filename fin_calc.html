@@ -100,8 +100,55 @@ body {
 .legend-item { display: flex; align-items: center; gap: 5px; color: var(--color-text); font-size: 12px; }
 .legend-dot  { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
 .legend-dash { width: 18px; border-top: 2px dashed var(--color-total); display: inline-block; }
+.legend-spend-marker    { width: 2px; height: 12px; background: #D85A30; display: inline-block; border-radius: 1px; flex-shrink: 0; }
+.legend-pause-marker    { width: 12px; height: 10px; background: rgba(127,119,221,0.18); border: 1px dashed rgba(127,119,221,0.55); border-radius: 2px; display: inline-block; flex-shrink: 0; }
+.legend-withdrawal-marker { width: 12px; height: 10px; background: rgba(29,158,117,0.12); border: 1.5px dashed rgba(29,158,117,0.6); border-radius: 2px; display: inline-block; flex-shrink: 0; }
 .total-toggle { display: flex; align-items: center; gap: 8px; }
 .chart-wrapper { position: relative; width: 100%; height: 300px; }
+
+/* ─── Reset zoom button ─────────────────────────────────────────── */
+.reset-zoom-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.reset-zoom-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* ─── Zoom axis mode toggle ─────────────────────────────────────── */
+.zoom-mode-group {
+  display: flex;
+  border: 0.5px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.zoom-mode-btn {
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  border-right: 0.5px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+.zoom-mode-btn:last-child { border-right: none; }
+.zoom-mode-btn:hover { background: var(--color-bg-secondary); color: var(--color-text); }
+.zoom-mode-btn.active {
+  background: var(--color-accent);
+  color: #fff;
+}
 
 /* ─── Tabs ──────────────────────────────────────────────────────── */
 .tab-bar {
@@ -403,12 +450,34 @@ input[type="range"]::-moz-range-thumb {
   <div class="chart-card">
     <div class="chart-header">
       <div id="legend" class="legend"></div>
-      <div class="total-toggle">
-        <label class="tog">
-          <input type="checkbox" id="total-tog" checked onchange="renderAll()" />
-          <span class="tog-track"></span><span class="tog-thumb"></span>
-        </label>
-        <span class="muted-label">Show total</span>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div class="zoom-mode-group" title="Scroll wheel / pinch zoom axis">
+          <button class="zoom-mode-btn active" id="zm-x"  onclick="setZoomMode('x')">X</button>
+          <button class="zoom-mode-btn"        id="zm-y"  onclick="setZoomMode('y')">Y</button>
+          <button class="zoom-mode-btn"        id="zm-xy" onclick="setZoomMode('xy')">XY</button>
+        </div>
+        <button class="zoom-mode-btn active" id="pause-highlight-btn"
+                onclick="togglePauseHighlight()"
+                title="Show/hide pause period shading on chart"
+                style="border-radius:var(--radius-sm);border:0.5px solid var(--color-border-strong);">
+          Pause shading
+        </button>
+        <button class="zoom-mode-btn active" id="wd-highlight-btn"
+                onclick="toggleWithdrawalHighlight()"
+                title="Show/hide withdrawal period shading on chart"
+                style="border-radius:var(--radius-sm);border:0.5px solid var(--color-border-strong);">
+          Withdrawal shading
+        </button>
+        <button id="reset-zoom-btn" class="reset-zoom-btn" onclick="resetChartZoom()" style="display:none;" title="Reset zoom to full view">
+          ↺ Reset zoom
+        </button>
+        <div class="total-toggle">
+          <label class="tog">
+            <input type="checkbox" id="total-tog" checked onchange="renderAll()" />
+            <span class="tog-track"></span><span class="tog-thumb"></span>
+          </label>
+          <span class="muted-label">Show total</span>
+        </div>
       </div>
     </div>
     <div class="chart-wrapper">
@@ -417,10 +486,11 @@ input[type="range"]::-moz-range-thumb {
   </div>
 
   <div class="tab-bar">
-    <button class="tab-btn active" id="tab-portfolios" onclick="switchTab('portfolios')">Portfolios</button>
-    <button class="tab-btn"        id="tab-spends"     onclick="switchTab('spends')">Major spends</button>
-    <button class="tab-btn"        id="tab-transfers"  onclick="switchTab('transfers')">Transfers</button>
-    <button class="tab-btn"        id="tab-pauses"     onclick="switchTab('pauses')">Pause deposits</button>
+    <button class="tab-btn active" id="tab-portfolios"   onclick="switchTab('portfolios')">Portfolios</button>
+    <button class="tab-btn"        id="tab-spends"       onclick="switchTab('spends')">Major spends</button>
+    <button class="tab-btn"        id="tab-transfers"    onclick="switchTab('transfers')">Transfers</button>
+    <button class="tab-btn"        id="tab-pauses"       onclick="switchTab('pauses')">Pause deposits</button>
+    <button class="tab-btn"        id="tab-withdrawals"  onclick="switchTab('withdrawals')">Withdrawals</button>
   </div>
 
   <!-- Portfolios panel -->
@@ -508,8 +578,56 @@ input[type="range"]::-moz-range-thumb {
     </div>
   </div>
 
+  <!-- Withdrawals panel -->
+  <div id="panel-withdrawals" style="display:none;">
+    <div id="withdrawals-list"></div>
+    <div class="pf-card">
+      <p class="section-title">Add continuous withdrawal</p>
+      <p class="hint-label" style="margin-bottom:12px;">
+        A fixed annual amount withdrawn from a portfolio each year over a range. Optionally inflated each year to preserve purchasing power.
+      </p>
+      <div class="transfer-form-grid">
+        <div>
+          <p class="field-label">Portfolio</p>
+          <select id="wd-pf" class="sinput" style="width:100%;"></select>
+        </div>
+        <div>
+          <p class="field-label">Label <span class="hint-label">(optional)</span></p>
+          <input type="text" id="wd-lbl" class="sinput" placeholder="e.g. Living expenses" style="width:100%;" />
+        </div>
+        <div>
+          <p class="field-label">Start year (global)</p>
+          <input type="number" id="wd-start" class="sinput" placeholder="e.g. 10" min="0" max="99" style="width:100%;" />
+        </div>
+        <div>
+          <p class="field-label">End year (global)</p>
+          <input type="number" id="wd-end" class="sinput" placeholder="e.g. 30" min="0" max="99" style="width:100%;" />
+        </div>
+        <div>
+          <p class="field-label">Annual withdrawal amount</p>
+          <input type="number" id="wd-amount" class="sinput" placeholder="e.g. 600000" min="1" style="width:100%;" />
+        </div>
+        <div>
+          <p class="field-label">Inflation rate (%) <span class="hint-label">(if adjusting)</span></p>
+          <input type="number" id="wd-infrate" class="sinput" placeholder="e.g. 6" min="0" max="30" step="0.5" style="width:100%;" />
+        </div>
+        <div style="grid-column: 1 / -1; display:flex; align-items:center; gap:10px; padding-top:4px;">
+          <label class="tog">
+            <input type="checkbox" id="wd-inflate" checked />
+            <span class="tog-track"></span><span class="tog-thumb"></span>
+          </label>
+          <span class="muted-label">Adjust withdrawal amount for inflation each year</span>
+        </div>
+      </div>
+      <button class="add-btn" onclick="addWithdrawal()" style="margin-top:10px;">+ Add withdrawal plan</button>
+    </div>
+  </div>
+
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
 /* ─── State ─────────────────────────────────────────────────────── */
 const PALETTE = ['#185FA5','#1D9E75','#7F77DD','#D85A30','#BA7517','#D4537E','#639922','#0F6E56'];
@@ -518,11 +636,17 @@ let portfolios   = [];
 let spendEvents  = [];
 let transfers    = [];
 let pausePeriods = [];   // { id, pfId, years: Set<number>, label, raw }
+let withdrawals  = [];   // { id, pfId, startYear, endYear, baseAmount, inflationRate, inflateWithdrawal, label }
 let pfCounter    = 0;
 let trCounter    = 0;
 let paCounter    = 0;
+let wdCounter    = 0;
 let chart        = null;
 let currency     = 'INR';
+let zoomMode     = 'x';   // 'x' | 'y' | 'xy'
+let _importing   = false; // suppresses renderAll during batch import
+let showPauseHighlight      = true; // toggles pause shading on chart
+let showWithdrawalHighlight = true; // toggles withdrawal shading on chart
 
 /* ─── Currency helpers ──────────────────────────────────────────── */
 function getSymbol() {
@@ -561,12 +685,13 @@ function setCurrency(cur) {
 
 /* ─── Tab switching ─────────────────────────────────────────────── */
 function switchTab(tab) {
-  ['portfolios', 'spends', 'transfers', 'pauses'].forEach(t => {
+  ['portfolios', 'spends', 'transfers', 'pauses', 'withdrawals'].forEach(t => {
     document.getElementById('panel-' + t).style.display = t === tab ? '' : 'none';
     document.getElementById('tab-' + t).className = 'tab-btn' + (t === tab ? ' active' : '');
   });
-  if (tab === 'transfers') refreshTransferSelects();
-  if (tab === 'pauses')    refreshPauseSelect();
+  if (tab === 'transfers')  refreshTransferSelects();
+  if (tab === 'pauses')     refreshPauseSelect();
+  if (tab === 'withdrawals') refreshWithdrawalSelect();
 }
 
 /* ─── Portfolio computation ─────────────────────────────────────── */
@@ -582,7 +707,6 @@ function computePortfolio(pf, maxYear) {
   const limit  = maxYear !== undefined ? maxYear : start + pf.years;
 
   // All events use GLOBAL years on the shared timeline.
-  // ev.year (spend), tr.year (transfer), pa.years (pause) are all global.
 
   // Spend withdrawals keyed by GLOBAL year
   const spendMap = {};
@@ -601,7 +725,23 @@ function computePortfolio(pf, maxYear) {
   // Paused global years — deposit skipped when g is in this set
   const pausedGlobalYears = new Set();
   pausePeriods.forEach(pa => {
-    if (pa.pfId === pf.id) pa.years.forEach(y => pausedGlobalYears.add(y));
+    if (pa.pfId !== pf.id) return;
+    // Normalise: pa.years may be a Set or a plain Array depending on how it was created
+    const yrs = pa.years instanceof Set ? pa.years : new Set(Array.isArray(pa.years) ? pa.years : []);
+    yrs.forEach(y => pausedGlobalYears.add(y));
+  });
+
+  // Continuous withdrawal map keyed by GLOBAL year
+  // Each active withdrawal contributes its inflation-adjusted amount for each year in [startYear..endYear]
+  const withdrawalMap = {};
+  withdrawals.forEach(wd => {
+    if (wd.pfId !== pf.id) return;
+    const wdInfR = (wd.inflateWithdrawal ? (wd.inflationRate || 0) : 0) / 100;
+    for (let g = wd.startYear; g <= wd.endYear && g <= limit; g++) {
+      const yearsIn = g - wd.startYear;   // 0-indexed: first year = no inflation yet
+      const amount  = wd.baseAmount * Math.pow(1 + wdInfR, yearsIn);
+      withdrawalMap[g] = (withdrawalMap[g] || 0) + amount;
+    }
   });
 
   const balances = new Array(limit + 1).fill(null);
@@ -627,11 +767,14 @@ function computePortfolio(pf, maxYear) {
       }
 
       // Spends and transfers at this global year
-      balance = Math.max(0, balance - (spendMap[g]    || 0));
-      balance = Math.max(0, balance + (transferMap[g] || 0));
+      balance = Math.max(0, balance - (spendMap[g]       || 0));
+      balance = Math.max(0, balance + (transferMap[g]    || 0));
+      // Continuous withdrawals
+      balance = Math.max(0, balance - (withdrawalMap[g]  || 0));
     } else {
-      // Closed: no compounding, no deposits — transfers still apply
-      balance = Math.max(0, balance + (transferMap[g] || 0));
+      // Closed: no compounding, no deposits — transfers and withdrawals still apply
+      balance = Math.max(0, balance + (transferMap[g]   || 0));
+      balance = Math.max(0, balance - (withdrawalMap[g] || 0));
     }
 
     balances[g] = Math.round(balance);
@@ -716,6 +859,7 @@ function updateChart() {
     });
   }
 
+  // ── Legend ───────────────────────────────────────────────────────
   document.getElementById('legend').innerHTML =
     portfolios.map(pf =>
       `<span class="legend-item">
@@ -727,8 +871,155 @@ function updateChart() {
            <span class="legend-dash"></span>
            <span style="color:var(--color-text-secondary);">Total</span>
          </span>`
+      : '') +
+    (spendEvents.length
+      ? `<span class="legend-item">
+           <span class="legend-spend-marker"></span>
+           <span style="color:var(--color-text-secondary);">Spend</span>
+         </span>`
+      : '') +
+    (pausePeriods.length && showPauseHighlight
+      ? `<span class="legend-item">
+           <span class="legend-pause-marker"></span>
+           <span style="color:var(--color-text-secondary);">Paused</span>
+         </span>`
+      : '') +
+    (withdrawals.length && showWithdrawalHighlight
+      ? `<span class="legend-item">
+           <span class="legend-withdrawal-marker"></span>
+           <span style="color:var(--color-text-secondary);">Withdrawal</span>
+         </span>`
       : '');
 
+  // ── Annotations ──────────────────────────────────────────────────
+  const annotations = {};
+
+  // Spend markers — vertical dashed orange lines
+  const spendByYear = {};
+  spendEvents.forEach(ev => {
+    if (!spendByYear[ev.year]) spendByYear[ev.year] = [];
+    spendByYear[ev.year].push(ev.label);
+  });
+  Object.entries(spendByYear).forEach(([yr, lbls]) => {
+    const y = parseInt(yr);
+    if (y < 0 || y > maxY) return;
+    annotations['spend_' + y] = {
+      type:        'line',
+      scaleID:     'x',
+      value:       y === 0 ? 'Now' : 'Yr ' + y,
+      borderColor: '#D85A30',
+      borderWidth: 1.5,
+      borderDash:  [4, 3],
+      label: {
+        display:         true,
+        content:         lbls.join(', '),
+        position:        'start',
+        yAdjust:         -6,
+        backgroundColor: 'rgba(216,90,48,0.12)',
+        color:           '#D85A30',
+        font:            { size: 10, weight: 'normal' },
+        padding:         { x: 5, y: 3 },
+        borderRadius:    3,
+      }
+    };
+  });
+
+  // Pause highlight boxes — only when toggle is on
+  if (showPauseHighlight && pausePeriods.length) {
+    let boxIdx = 0;
+    pausePeriods.forEach(pa => {
+      const pf = portfolios.find(p => p.id === pa.pfId);
+      if (!pf) return;
+
+      const yearsArr = (pa.years instanceof Set)
+        ? [...pa.years]
+        : Array.isArray(pa.years) ? [...pa.years] : [];
+      if (!yearsArr.length) return;
+
+      const toRgba = (h, a) => {
+        const n = parseInt(h.replace('#', ''), 16);
+        return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+      };
+
+      const sorted = yearsArr.map(Number).sort((a, b) => a - b);
+      const runs = [];
+      let s = sorted[0], e = sorted[0];
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i] === e + 1) { e = sorted[i]; }
+        else { runs.push([s, e]); s = e = sorted[i]; }
+      }
+      runs.push([s, e]);
+
+      runs.forEach(([from, to]) => {
+        if (from > maxY) return;
+        annotations['pause_' + pa.id + '_' + boxIdx++] = {
+          type:            'box',
+          xMin:            from === 0 ? 'Now' : 'Yr ' + from,
+          xMax:            'Yr ' + Math.min(to + 1, maxY),
+          backgroundColor: toRgba(pf.color, 0.10),
+          borderColor:     toRgba(pf.color, 0.35),
+          borderWidth:     1,
+          borderDash:      [3, 3],
+          label: {
+            display:         true,
+            content:         [pf.name, 'paused'],
+            position:        { x: 'center', y: 'start' },
+            yAdjust:         6,
+            backgroundColor: 'transparent',
+            color:           toRgba(pf.color, 0.65),
+            font:            { size: 10, weight: 'normal' },
+            padding:         0,
+          }
+        };
+      });
+    });
+  }
+
+  // Withdrawal highlight boxes — only when toggle is on
+  if (showWithdrawalHighlight && withdrawals.length) {
+    const toRgba = (h, a) => {
+      const n = parseInt(h.replace('#', ''), 16);
+      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    };
+
+    withdrawals.forEach((wd, idx) => {
+      const pf = portfolios.find(p => p.id === wd.pfId);
+      if (!pf) return;
+      const from = Math.max(0, wd.startYear);
+      const to   = Math.min(wd.endYear, maxY);
+      if (from > maxY) return;
+
+      // Show the base and (if inflated) the final year amount in the label
+      const wdInfR = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
+      const lastAmt = wd.baseAmount * Math.pow(1 + wdInfR, wd.endYear - wd.startYear);
+      const amtLabel = wd.inflateWithdrawal && lastAmt !== wd.baseAmount
+        ? `${fmt(wd.baseAmount)}→${fmt(lastAmt)}/yr`
+        : `${fmt(wd.baseAmount)}/yr`;
+
+      annotations['wd_' + wd.id + '_' + idx] = {
+        type:            'box',
+        xMin:            from === 0 ? 'Now' : 'Yr ' + from,
+        xMax:            'Yr ' + Math.min(to + 1, maxY),
+        backgroundColor: toRgba(pf.color, 0.07),
+        borderColor:     toRgba(pf.color, 0.5),
+        borderWidth:     1.5,
+        borderDash:      [6, 3],
+        label: {
+          display:         true,
+          content:         [pf.name, amtLabel],
+          position:        { x: 'center', y: 'end' },
+          yAdjust:         -6,
+          backgroundColor: 'transparent',
+          color:           toRgba(pf.color, 0.75),
+          font:            { size: 10, weight: 'normal' },
+          padding:         0,
+        }
+      };
+    });
+  }
+
+  const zoomBtn = document.getElementById('reset-zoom-btn');
+  if (zoomBtn) zoomBtn.style.display = 'none';
   if (chart) { chart.destroy(); chart = null; }
   chart = new Chart(document.getElementById('mainChart'), {
     type: 'line',
@@ -740,7 +1031,72 @@ function updateChart() {
         legend:  { display: false },
         tooltip: {
           filter: item => !item.dataset.label.endsWith('_tail'),
-          callbacks: { label: ctx => ctx.dataset.label + ': ' + fmt(ctx.raw) }
+          callbacks: {
+            label: ctx => ctx.dataset.label + ': ' + fmt(ctx.raw),
+            afterBody: ctx => {
+              const yr = ctx[0]?.dataIndex;
+              if (yr === undefined) return [];
+              const lines = [];
+
+              // Spend events at this year
+              const evs = spendEvents.filter(ev => ev.year === yr);
+              if (evs.length) {
+                lines.push('', '— Spends —');
+                evs.forEach(ev => {
+                  const parts = portfolios
+                    .filter(pf => ev.amounts[pf.id] > 0)
+                    .map(pf => `${pf.name}: −${fmt(ev.amounts[pf.id])}`);
+                  lines.push(`${ev.label}` + (parts.length ? ': ' + parts.join(', ') : ''));
+                });
+              }
+
+              // Paused portfolios at this year
+              const pausedNames = pausePeriods
+                .filter(pa => {
+                  const yrs = pa.years instanceof Set ? pa.years : new Set(Array.isArray(pa.years) ? pa.years : []);
+                  return yrs.has(yr);
+                })
+                .map(pa => portfolios.find(p => p.id === pa.pfId)?.name)
+                .filter(Boolean);
+              if (pausedNames.length) {
+                lines.push('', '— Deposit paused —');
+                pausedNames.forEach(n => lines.push(n));
+              }
+
+              // Active withdrawals at this year
+              const activeWds = withdrawals.filter(wd => yr >= wd.startYear && yr <= wd.endYear);
+              if (activeWds.length) {
+                lines.push('', '— Withdrawals —');
+                activeWds.forEach(wd => {
+                  const pf = portfolios.find(p => p.id === wd.pfId);
+                  if (!pf) return;
+                  const wdInfR = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
+                  const amt = wd.baseAmount * Math.pow(1 + wdInfR, yr - wd.startYear);
+                  lines.push(`${pf.name} (${wd.label}): −${fmt(amt)}`);
+                });
+              }
+
+              return lines;
+            }
+          }
+        },
+        annotation: { annotations },
+        zoom: {
+          pan: {
+            enabled:    true,
+            mode:       zoomMode === 'y' ? 'y' : zoomMode === 'xy' ? 'xy' : 'x',
+            threshold:  5,
+            onPan:      () => showResetZoom(),
+          },
+          zoom: {
+            wheel:   { enabled: true, speed: 0.08 },
+            pinch:   { enabled: true },
+            mode:    zoomMode,
+            onZoom:  () => showResetZoom(),
+          },
+          limits: {
+            x: { minRange: 2 }
+          }
         }
       },
       scales: {
@@ -749,6 +1105,48 @@ function updateChart() {
       }
     }
   });
+}
+
+function showResetZoom() {
+  const btn = document.getElementById('reset-zoom-btn');
+  if (btn) btn.style.display = '';
+}
+
+function resetChartZoom() {
+  if (chart) {
+    chart.resetZoom();
+    const btn = document.getElementById('reset-zoom-btn');
+    if (btn) btn.style.display = 'none';
+  }
+}
+
+function setZoomMode(mode) {
+  zoomMode = mode;
+  // Update button active states
+  ['x', 'y', 'xy'].forEach(m => {
+    const btn = document.getElementById('zm-' + m);
+    if (btn) btn.className = 'zoom-mode-btn' + (m === mode ? ' active' : '');
+  });
+  // Update the live chart plugin without full rebuild — faster response
+  if (chart) {
+    chart.options.plugins.zoom.pan.mode  = mode === 'y' ? 'y' : mode === 'xy' ? 'xy' : 'x';
+    chart.options.plugins.zoom.zoom.mode = mode;
+    chart.update('none');
+  }
+}
+
+function togglePauseHighlight() {
+  showPauseHighlight = !showPauseHighlight;
+  const btn = document.getElementById('pause-highlight-btn');
+  if (btn) btn.className = 'zoom-mode-btn' + (showPauseHighlight ? ' active' : '');
+  updateChart();
+}
+
+function toggleWithdrawalHighlight() {
+  showWithdrawalHighlight = !showWithdrawalHighlight;
+  const btn = document.getElementById('wd-highlight-btn');
+  if (btn) btn.className = 'zoom-mode-btn' + (showWithdrawalHighlight ? ' active' : '');
+  updateChart();
 }
 
 /* ─── Summary row ───────────────────────────────────────────────── */
@@ -1151,7 +1549,8 @@ function renderPauses() {
   el.innerHTML = pausePeriods.map((pa, i) => {
     const pf = portfolios.find(p => p.id === pa.pfId);
     if (!pf) return '';
-    const yearStr = formatYears([...pa.years].sort((a, b) => a - b));
+    const yearsArr = pa.years instanceof Set ? [...pa.years] : Array.isArray(pa.years) ? pa.years : [];
+    const yearStr  = formatYears(yearsArr.sort((a, b) => a - b));
     return `<div class="event-card">
       <div class="event-header">
         <div>
@@ -1238,6 +1637,7 @@ function removePortfolio(id) {
   spendEvents.forEach(ev => delete ev.amounts[id]);
   transfers    = transfers.filter(tr => tr.from !== id && tr.to !== id);
   pausePeriods = pausePeriods.filter(pa => pa.pfId !== id);
+  withdrawals  = withdrawals.filter(wd => wd.pfId !== id);
   renderAll();
 }
 
@@ -1253,6 +1653,8 @@ function renamePf(id, val) {
   refreshTransferSelects();
   renderPauses();
   refreshPauseSelect();
+  renderWithdrawals();
+  refreshWithdrawalSelect();
 }
 
 function toggleCollapse(id) {
@@ -1391,7 +1793,7 @@ function _applyImportedRows(rows) {
   let evKey = null, evRows = [];
   eventRows.forEach(r => {
     const first = (r[0] || '').trim();
-    if (['Spend events', 'Transfers', 'Deposit pauses'].includes(first)) {
+    if (['Spend events', 'Transfers', 'Deposit pauses', 'Continuous withdrawals'].includes(first)) {
       if (evKey) eventSections[evKey] = evRows;
       evKey  = first;
       evRows = [];
@@ -1406,6 +1808,9 @@ function _applyImportedRows(rows) {
   const nameToId = {};
 
   // ── Reset state and rebuild ──────────────────────────────────────
+  // Suppress renderAll() calls during batch import — call once at the end
+  _importing = true;
+
   // Remove all existing portfolio DOM nodes
   portfolios.forEach(pf => {
     const el = document.getElementById('pf-' + pf.id);
@@ -1415,9 +1820,11 @@ function _applyImportedRows(rows) {
   spendEvents  = [];
   transfers    = [];
   pausePeriods = [];
+  withdrawals  = [];
   pfCounter    = 0;
   trCounter    = 0;
   paCounter    = 0;
+  wdCounter    = 0;
 
   // ── Create portfolios ────────────────────────────────────────────
   settingsData.forEach(r => {
@@ -1485,8 +1892,28 @@ function _applyImportedRows(rows) {
       if (!pfId || !raw) continue;
       const yrs  = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
       if (!yrs.length) continue;
-      pausePeriods.push({ id: ++paCounter, pfId, years: new Set(yrs), label: lbl, raw });
+      pausePeriods.push({ id: ++paCounter, pfId, years: new Set(yrs), label: lbl, raw: yrs.join(', ') });
     }
+  }
+
+  // ── Parse continuous withdrawals ─────────────────────────────────
+  // Header: Portfolio | Label | Start year | End year | Base amount | Inflation rate (%) | Inflate withdrawal
+  const wdRows = eventSections['Continuous withdrawals'] || [];
+  if (wdRows.length && (wdRows[0][0] || '') !== '(none)') {
+    for (let i = 1; i < wdRows.length; i++) {
+      const r    = wdRows[i];
+      if (!r[0]) continue;
+      const pfId      = nameToId[r[0]];
+      const lbl       = r[1] || 'Withdrawal';
+      const startYear = parseInt(r[2]);
+      const endYear   = parseInt(r[3]);
+      const baseAmt   = parseFloat(r[4]) * invRate;
+      const infRate   = parseFloat(r[5]) || 0;
+      const inflate   = (r[6] || '').trim().toLowerCase() !== 'no';
+      if (!pfId || isNaN(startYear) || isNaN(endYear) || isNaN(baseAmt) || baseAmt <= 0) continue;
+      withdrawals.push({ id: ++wdCounter, pfId, startYear, endYear, baseAmount: baseAmt, inflationRate: infRate, inflateWithdrawal: inflate, label: lbl });
+    }
+    withdrawals.sort((a, b) => a.startYear - b.startYear);
   }
 
   // ── Restore currency display ─────────────────────────────────────
@@ -1506,6 +1933,8 @@ function _applyImportedRows(rows) {
     document.getElementById('conv-wrap').style.display = 'none';
   }
 
+  // Release the import lock and do one full render with all state in place
+  _importing = false;
   renderAll();
   showImportStatus(`Imported ${portfolios.length} portfolio${portfolios.length > 1 ? 's' : ''} successfully.`);
 }
@@ -1612,8 +2041,28 @@ function exportCSV() {
     eventRows.push(['Portfolio', 'Label', 'Global years paused']);
     pausePeriods.forEach(pa => {
       const pf  = portfolios.find(p => p.id === pa.pfId);
-      const yrs = [...pa.years].sort((a, b) => a - b).join(', ');
+      const yrs = (pa.years instanceof Set ? [...pa.years] : Array.isArray(pa.years) ? pa.years : []).sort((a, b) => a - b).join(', ');
       eventRows.push([pf?.name || pa.pfId, pa.label, yrs]);
+    });
+  } else {
+    eventRows.push(['(none)']);
+  }
+
+  eventRows.push([]);
+  eventRows.push(['Continuous withdrawals']);
+  if (withdrawals.length) {
+    eventRows.push(['Portfolio', 'Label', 'Start year', 'End year', 'Base amount', 'Inflation rate (%)', 'Inflate withdrawal']);
+    withdrawals.forEach(wd => {
+      const pf = portfolios.find(p => p.id === wd.pfId);
+      eventRows.push([
+        pf?.name || wd.pfId,
+        wd.label,
+        wd.startYear,
+        wd.endYear,
+        cv(wd.baseAmount),
+        wd.inflationRate,
+        wd.inflateWithdrawal ? 'Yes' : 'No'
+      ]);
     });
   } else {
     eventRows.push(['(none)']);
@@ -1655,8 +2104,98 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
+/* ─── Withdrawals ────────────────────────────────────────────────── */
+
+function refreshWithdrawalSelect() {
+  const sel = document.getElementById('wd-pf');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = portfolios.map(pf =>
+    `<option value="${pf.id}"${pf.id == prev ? ' selected' : ''}>${pf.name}</option>`
+  ).join('');
+}
+
+function renderWithdrawals() {
+  const el = document.getElementById('withdrawals-list');
+  if (!el) return;
+
+  if (!withdrawals.length) {
+    el.innerHTML = `<p class="no-items">No withdrawal plans yet. Add one below.</p>`;
+    return;
+  }
+
+  el.innerHTML = withdrawals.map((wd, i) => {
+    const pf = portfolios.find(p => p.id === wd.pfId);
+    if (!pf) return '';
+
+    // Show the projected first and last withdrawal amounts
+    const wdInfR = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
+    const lastAmt = wd.baseAmount * Math.pow(1 + wdInfR, wd.endYear - wd.startYear);
+    const durationYrs = wd.endYear - wd.startYear + 1;
+
+    return `<div class="event-card">
+      <div class="event-header">
+        <div>
+          <p class="event-title">${wd.label}</p>
+          <p class="event-year">Yr ${wd.startYear} – Yr ${wd.endYear} &nbsp;·&nbsp; ${durationYrs} yr${durationYrs !== 1 ? 's' : ''}</p>
+        </div>
+        <button class="icon-btn" onclick="removeWithdrawal(${i})">×</button>
+      </div>
+      <div class="pills-row" style="margin-bottom:8px;">
+        <div class="pf-pill" style="background:${pf.color}18;">
+          <span class="pf-pill-dot" style="background:${pf.color};"></span>
+          <span style="color:${pf.color};">${pf.name}</span>
+        </div>
+        <span style="font-size:12px;color:var(--color-text-secondary);">
+          ${fmt(wd.baseAmount)}/yr
+          ${wd.inflateWithdrawal
+            ? `→ ${fmt(lastAmt)}/yr by Yr ${wd.endYear} <span style="color:var(--color-text-hint)">(+${wd.inflationRate}%/yr)</span>`
+            : '<span style="color:var(--color-text-hint)">(fixed)</span>'}
+        </span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addWithdrawal() {
+  const pfId      = portfolios.find(p => p.id == document.getElementById('wd-pf')?.value)?.id;
+  const startYear = parseInt(document.getElementById('wd-start').value);
+  const endYear   = parseInt(document.getElementById('wd-end').value);
+  const baseAmt   = parseFloat(document.getElementById('wd-amount').value);
+  const infRate   = parseFloat(document.getElementById('wd-infrate').value) || 0;
+  const inflate   = document.getElementById('wd-inflate').checked;
+  const lbl       = document.getElementById('wd-lbl').value.trim() || 'Withdrawal';
+
+  if (!pfId || isNaN(startYear) || isNaN(endYear) || isNaN(baseAmt)
+      || startYear < 0 || endYear < startYear || baseAmt <= 0) return;
+
+  withdrawals.push({
+    id: ++wdCounter,
+    pfId, startYear, endYear,
+    baseAmount: baseAmt,
+    inflationRate: infRate,
+    inflateWithdrawal: inflate,
+    label: lbl
+  });
+  withdrawals.sort((a, b) => a.startYear - b.startYear);
+
+  // Clear form
+  document.getElementById('wd-start').value  = '';
+  document.getElementById('wd-end').value    = '';
+  document.getElementById('wd-amount').value = '';
+  document.getElementById('wd-lbl').value    = '';
+
+  renderAll();
+}
+
+function removeWithdrawal(i) {
+  withdrawals.splice(i, 1);
+  renderAll();
+}
+
 /* ─── Full re-render ────────────────────────────────────────────── */
 function renderAll() {
+  if (_importing) return;
   portfolios.forEach(pf => renderPortfolioCard(pf));
   renderSpendEvents();
   renderSpendAmounts();
@@ -1664,6 +2203,8 @@ function renderAll() {
   refreshTransferSelects();
   renderPauses();
   refreshPauseSelect();
+  renderWithdrawals();
+  refreshWithdrawalSelect();
   updateChart();
   updateSummary();
 }
