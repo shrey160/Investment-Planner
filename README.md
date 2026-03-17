@@ -191,7 +191,7 @@ styles.css   — All visual styling, warm-linen palette, light/dark mode
 app.js       — All application logic
 ```
 
-The app has no dependencies beyond Chart.js, chartjs-plugin-annotation, hammerjs, and chartjs-plugin-zoom — all loaded from CDN in `index.html`.
+The app has no dependencies beyond Chart.js, chartjs-plugin-annotation, hammerjs, and chartjs-plugin-zoom — all loaded from CDN in `fin_calc.html`. For the site, these packages are included in deplib folder.
 
 ---
 
