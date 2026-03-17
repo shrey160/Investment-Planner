@@ -63,58 +63,75 @@ function switchTab(tab) {
  * no more compounding or deposits, but transfers and spends still apply.
  */
 function computePortfolio(pf, maxYear) {
-  const r    = pf.rate      / 100;
-  const infR = pf.inflation / 100;
+  const r      = pf.rate      / 100;
+  const infR   = pf.inflation / 100;
+  const start  = pf.startYear || 0;
+  const limit  = maxYear !== undefined ? maxYear : start + pf.years;
 
-  // Spend withdrawals keyed by year
+  // All events use GLOBAL years on the shared timeline.
+  // ev.year (spend), tr.year (transfer), pa.years (pause) are all global.
+
+  // Spend withdrawals keyed by GLOBAL year
   const spendMap = {};
   spendEvents.forEach(ev => {
     const a = ev.amounts[pf.id] || 0;
     if (a > 0 && ev.year > 0) spendMap[ev.year] = (spendMap[ev.year] || 0) + a;
   });
 
-  // Transfer flows keyed by year (negative = outflow, positive = inflow)
+  // Transfer flows keyed by GLOBAL year
   const transferMap = {};
   transfers.forEach(tr => {
     if (tr.from === pf.id) transferMap[tr.year] = (transferMap[tr.year] || 0) - tr.amount;
     if (tr.to   === pf.id) transferMap[tr.year] = (transferMap[tr.year] || 0) + tr.amount;
   });
 
-  // Build set of paused years for this portfolio
-  const pausedYears = new Set();
+  // Paused global years — deposit skipped when g is in this set
+  const pausedGlobalYears = new Set();
   pausePeriods.forEach(pa => {
-    if (pa.pfId === pf.id) pa.years.forEach(y => pausedYears.add(y));
+    if (pa.pfId === pf.id) pa.years.forEach(y => pausedGlobalYears.add(y));
   });
 
-  const limit = maxYear !== undefined ? maxYear : pf.years;
-  let balance = pf.principal, totalDeposited = pf.principal;
-  const balances = [balance];
+  const balances = new Array(limit + 1).fill(null);
 
-  for (let y = 1; y <= limit; y++) {
-    if (y <= pf.years) {
-      // Active: always compound
+  let balance = pf.principal;
+  let totalDeposited = pf.principal;
+  balances[start] = Math.round(balance);
+
+  for (let g = start + 1; g <= limit; g++) {
+    const localY = g - start;   // 1-indexed local portfolio year (for inflation calc only)
+
+    if (localY <= pf.years) {
+      // Active: compound always
       balance *= (1 + r);
-      // Deposit only if not paused this year
-      if (!pausedYears.has(y)) {
+
+      // Deposit unless this global year is paused
+      if (!pausedGlobalYears.has(g)) {
         const deposit = pf.inflateDeposits
-          ? pf.annual * Math.pow(1 + infR, y - 1)
+          ? pf.annual * Math.pow(1 + infR, localY - 1)
           : pf.annual;
         balance        += deposit;
         totalDeposited += deposit;
       }
-      balance = Math.max(0, balance - (spendMap[y]    || 0));
-      balance = Math.max(0, balance + (transferMap[y] || 0));
+
+      // Spends and transfers at this global year
+      balance = Math.max(0, balance - (spendMap[g]    || 0));
+      balance = Math.max(0, balance + (transferMap[g] || 0));
+    } else {
+      // Closed: no compounding, no deposits — transfers still apply
+      balance = Math.max(0, balance + (transferMap[g] || 0));
     }
-    // Closed: balance stays flat (no compounding, no deposits)
-    balances.push(Math.round(balance));
+
+    balances[g] = Math.round(balance);
   }
 
-  const finalIdx = Math.min(pf.years, balances.length - 1);
+  const finalGlobal = Math.min(start + pf.years, limit);
+  const finalVal    = balances[finalGlobal] ?? 0;
+
   return {
     balances,
     totalDeposited,
-    final:    balances[finalIdx],
-    interest: Math.max(0, balances[finalIdx] - totalDeposited)
+    final:    finalVal,
+    interest: Math.max(0, finalVal - totalDeposited)
   };
 }
 
@@ -125,20 +142,22 @@ function updateChart() {
     return;
   }
 
-  const maxY      = Math.max(...portfolios.map(p => p.years));
+  const maxY      = Math.max(...portfolios.map(p => (p.startYear || 0) + p.years));
   const labels    = Array.from({ length: maxY + 1 }, (_, i) => i === 0 ? 'Now' : 'Yr ' + i);
   const showTotal = document.getElementById('total-tog').checked;
   const allBals   = portfolios.map(pf => computePortfolio(pf, maxY).balances);
 
   const datasets = [];
 
-  // Each portfolio: solid active line + dashed flat tail after close
   portfolios.forEach((pf, pi) => {
+    const start   = pf.startYear || 0;
+    const endGlob = start + pf.years;
+
     datasets.push({
       label:            pf.name,
       borderColor:      pf.color,
       backgroundColor:  pf.color + '18',
-      data:             allBals[pi].map((v, i) => i <= pf.years ? v : null),
+      data:             allBals[pi].map((v, i) => (i >= start && i <= endGlob) ? v : null),
       fill:             false,
       tension:          0.3,
       pointRadius:      2,
@@ -146,12 +165,13 @@ function updateChart() {
       borderWidth:      2,
       spanGaps:         false
     });
-    if (pf.years < maxY) {
+
+    if (endGlob < maxY) {
       datasets.push({
         label:            pf.name + '_tail',
         borderColor:      pf.color,
         backgroundColor:  'transparent',
-        data:             allBals[pi].map((v, i) => i >= pf.years ? v : null),
+        data:             allBals[pi].map((v, i) => i >= endGlob ? v : null),
         fill:             false,
         tension:          0,
         pointRadius:      0,
@@ -163,27 +183,26 @@ function updateChart() {
     }
   });
 
-  // Total line — sums all portfolios including held-constant closed ones
   if (showTotal && portfolios.length > 1) {
     datasets.push({
       label:            'Total',
       borderColor:      '#8a8278',
       backgroundColor:  'transparent',
       data:             labels.map((_, i) => {
-        let sum = 0;
-        portfolios.forEach((_, pi) => { sum += allBals[pi][i] || 0; });
-        return Math.round(sum);
+        const vals = portfolios.map((_, pi) => allBals[pi][i]);
+        if (vals.every(v => v === null || v === undefined)) return null;
+        return Math.round(vals.reduce((s, v) => s + (v || 0), 0));
       }),
       fill:             false,
       tension:          0.3,
       pointRadius:      0,
       pointHoverRadius: 5,
       borderWidth:      2,
-      borderDash:       [6, 3]
+      borderDash:       [6, 3],
+      spanGaps:         false
     });
   }
 
-  // Legend
   document.getElementById('legend').innerHTML =
     portfolios.map(pf =>
       `<span class="legend-item">
@@ -197,7 +216,6 @@ function updateChart() {
          </span>`
       : '');
 
-  // Always destroy and recreate to avoid stale dataset state
   if (chart) { chart.destroy(); chart = null; }
   chart = new Chart(document.getElementById('mainChart'), {
     type: 'line',
@@ -251,6 +269,7 @@ const FIELD_CONFIG = {
   rate:           { min: 0.5,  max: 25,       step: 0.5,  isFloat: true,  rv: pf => pf.rate           },
   inflation:      { min: 0,    max: 15,       step: 0.5,  isFloat: true,  rv: pf => pf.inflation      },
   years:          { min: 1,    max: 50,       step: 1,    isFloat: false, rv: pf => pf.years          },
+  startYear:      { min: 0,    max: 49,       step: 1,    isFloat: false, rv: pf => pf.startYear      },
 };
 
 function startInlineEdit(spanEl, pfId, key) {
@@ -315,6 +334,11 @@ function renderPortfolioCard(pf) {
         <label class="pf-row-label"><span>Inflation rate</span>${valSpan('inflation', pf.inflation.toFixed(1) + '%')}</label>
         <input type="range" min="0" max="15" step="0.5" value="${pf.inflation}"
                oninput="updatePf(${pf.id},'inflation',+this.value)">
+      </div>
+      <div class="pf-row">
+        <label class="pf-row-label"><span>Start year</span>${valSpan('startYear', pf.startYear === 0 ? 'Now (yr 0)' : 'Yr ' + pf.startYear)}</label>
+        <input type="range" min="0" max="49" step="1" value="${pf.startYear}"
+               oninput="updatePf(${pf.id},'startYear',+this.value)">
       </div>
       <div class="pf-row">
         <label class="pf-row-label"><span>Years</span>${valSpan('years', pf.years)}</label>
@@ -593,6 +617,7 @@ function addPortfolio(opts = {}) {
     rate:            opts.rate            || 7,
     inflation:       opts.inflation       || 6,
     years:           opts.years           || 25,
+    startYear:       opts.startYear       || 0,
     inflateDeposits: opts.inflateDeposits !== undefined ? opts.inflateDeposits : true,
     collapsed:       false
   };
