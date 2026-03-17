@@ -13,6 +13,8 @@ let wdCounter    = 0;
 let chart        = null;
 let currency     = 'INR';
 let zoomMode     = 'x';   // 'x' | 'y' | 'xy'
+let _importing   = false; // suppresses renderAll during batch import
+let showPauseHighlight = true; // toggles pause shading on chart
 
 /* ─── Currency helpers ──────────────────────────────────────────── */
 function getSymbol() {
@@ -91,7 +93,10 @@ function computePortfolio(pf, maxYear) {
   // Paused global years — deposit skipped when g is in this set
   const pausedGlobalYears = new Set();
   pausePeriods.forEach(pa => {
-    if (pa.pfId === pf.id) pa.years.forEach(y => pausedGlobalYears.add(y));
+    if (pa.pfId !== pf.id) return;
+    // Normalise: pa.years may be a Set or a plain Array depending on how it was created
+    const yrs = pa.years instanceof Set ? pa.years : new Set(Array.isArray(pa.years) ? pa.years : []);
+    yrs.forEach(y => pausedGlobalYears.add(y));
   });
 
   // Continuous withdrawal map keyed by GLOBAL year
@@ -222,6 +227,7 @@ function updateChart() {
     });
   }
 
+  // ── Legend ───────────────────────────────────────────────────────
   document.getElementById('legend').innerHTML =
     portfolios.map(pf =>
       `<span class="legend-item">
@@ -239,32 +245,36 @@ function updateChart() {
            <span class="legend-spend-marker"></span>
            <span style="color:var(--color-text-secondary);">Spend</span>
          </span>`
+      : '') +
+    (pausePeriods.length && showPauseHighlight
+      ? `<span class="legend-item">
+           <span class="legend-pause-marker"></span>
+           <span style="color:var(--color-text-secondary);">Paused</span>
+         </span>`
       : '');
 
-  // ── Build spend annotations ──────────────────────────────────────
-  // Group all spend events by global year, collect labels for each year
+  // ── Annotations ──────────────────────────────────────────────────
+  const annotations = {};
+
+  // Spend markers — vertical dashed orange lines
   const spendByYear = {};
   spendEvents.forEach(ev => {
     if (!spendByYear[ev.year]) spendByYear[ev.year] = [];
     spendByYear[ev.year].push(ev.label);
   });
-
-  const annotations = {};
-  Object.entries(spendByYear).forEach(([yr, labels]) => {
+  Object.entries(spendByYear).forEach(([yr, lbls]) => {
     const y = parseInt(yr);
     if (y < 0 || y > maxY) return;
-    const xLabel = y === 0 ? 'Now' : 'Yr ' + y;
-    const labelText = labels.join(', ');
     annotations['spend_' + y] = {
       type:        'line',
       scaleID:     'x',
-      value:       xLabel,
+      value:       y === 0 ? 'Now' : 'Yr ' + y,
       borderColor: '#D85A30',
       borderWidth: 1.5,
       borderDash:  [4, 3],
       label: {
         display:         true,
-        content:         labelText,
+        content:         lbls.join(', '),
         position:        'start',
         yAdjust:         -6,
         backgroundColor: 'rgba(216,90,48,0.12)',
@@ -275,6 +285,61 @@ function updateChart() {
       }
     };
   });
+
+  // Pause highlight boxes — only when toggle is on
+  if (showPauseHighlight && pausePeriods.length) {
+    let boxIdx = 0;
+    pausePeriods.forEach(pa => {
+      const pf = portfolios.find(p => p.id === pa.pfId);
+      if (!pf) return;
+
+      // Safely get the years as an array regardless of storage type
+      const yearsArr = (pa.years instanceof Set)
+        ? [...pa.years]
+        : Array.isArray(pa.years) ? [...pa.years] : [];
+      if (!yearsArr.length) return;
+
+      // Convert portfolio hex color to rgba
+      const hex = pf.color;
+      const toRgba = (h, a) => {
+        const n = parseInt(h.replace('#', ''), 16);
+        return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+      };
+
+      // Group sorted years into contiguous runs → one box per run
+      const sorted = yearsArr.map(Number).sort((a, b) => a - b);
+      const runs = [];
+      let s = sorted[0], e = sorted[0];
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i] === e + 1) { e = sorted[i]; }
+        else { runs.push([s, e]); s = e = sorted[i]; }
+      }
+      runs.push([s, e]);
+
+      runs.forEach(([from, to]) => {
+        if (from > maxY) return;
+        annotations['pause_' + pa.id + '_' + boxIdx++] = {
+          type:            'box',
+          xMin:            from === 0 ? 'Now' : 'Yr ' + from,
+          xMax:            'Yr ' + Math.min(to + 1, maxY),
+          backgroundColor: toRgba(hex, 0.10),
+          borderColor:     toRgba(hex, 0.35),
+          borderWidth:     1,
+          borderDash:      [3, 3],
+          label: {
+            display:         true,
+            content:         [pf.name, 'paused'],
+            position:        { x: 'center', y: 'start' },
+            yAdjust:         6,
+            backgroundColor: 'transparent',
+            color:           toRgba(hex, 0.65),
+            font:            { size: 10, weight: 'normal' },
+            padding:         0,
+          }
+        };
+      });
+    });
+  }
 
   const zoomBtn = document.getElementById('reset-zoom-btn');
   if (zoomBtn) zoomBtn.style.display = 'none';
@@ -292,19 +357,36 @@ function updateChart() {
           callbacks: {
             label: ctx => ctx.dataset.label + ': ' + fmt(ctx.raw),
             afterBody: ctx => {
-              // Show any spend events at this year in the tooltip
               const yr = ctx[0]?.dataIndex;
               if (yr === undefined) return [];
+              const lines = [];
+
+              // Spend events at this year
               const evs = spendEvents.filter(ev => ev.year === yr);
-              if (!evs.length) return [];
-              return ['', '— Spends this year —',
-                ...evs.map(ev => {
+              if (evs.length) {
+                lines.push('', '— Spends —');
+                evs.forEach(ev => {
                   const parts = portfolios
                     .filter(pf => ev.amounts[pf.id] > 0)
                     .map(pf => `${pf.name}: −${fmt(ev.amounts[pf.id])}`);
-                  return `${ev.label}` + (parts.length ? ': ' + parts.join(', ') : '');
+                  lines.push(`${ev.label}` + (parts.length ? ': ' + parts.join(', ') : ''));
+                });
+              }
+
+              // Paused portfolios at this year
+              const pausedNames = pausePeriods
+                .filter(pa => {
+                  const yrs = pa.years instanceof Set ? pa.years : new Set(Array.isArray(pa.years) ? pa.years : []);
+                  return yrs.has(yr);
                 })
-              ];
+                .map(pa => portfolios.find(p => p.id === pa.pfId)?.name)
+                .filter(Boolean);
+              if (pausedNames.length) {
+                lines.push('', '— Deposit paused —');
+                pausedNames.forEach(n => lines.push(n));
+              }
+
+              return lines;
             }
           }
         },
@@ -361,6 +443,13 @@ function setZoomMode(mode) {
     chart.options.plugins.zoom.zoom.mode = mode;
     chart.update('none');
   }
+}
+
+function togglePauseHighlight() {
+  showPauseHighlight = !showPauseHighlight;
+  const btn = document.getElementById('pause-highlight-btn');
+  if (btn) btn.className = 'zoom-mode-btn' + (showPauseHighlight ? ' active' : '');
+  updateChart();
 }
 
 /* ─── Summary row ───────────────────────────────────────────────── */
@@ -763,7 +852,8 @@ function renderPauses() {
   el.innerHTML = pausePeriods.map((pa, i) => {
     const pf = portfolios.find(p => p.id === pa.pfId);
     if (!pf) return '';
-    const yearStr = formatYears([...pa.years].sort((a, b) => a - b));
+    const yearsArr = pa.years instanceof Set ? [...pa.years] : Array.isArray(pa.years) ? pa.years : [];
+    const yearStr  = formatYears(yearsArr.sort((a, b) => a - b));
     return `<div class="event-card">
       <div class="event-header">
         <div>
@@ -1021,6 +1111,9 @@ function _applyImportedRows(rows) {
   const nameToId = {};
 
   // ── Reset state and rebuild ──────────────────────────────────────
+  // Suppress renderAll() calls during batch import — call once at the end
+  _importing = true;
+
   // Remove all existing portfolio DOM nodes
   portfolios.forEach(pf => {
     const el = document.getElementById('pf-' + pf.id);
@@ -1102,7 +1195,7 @@ function _applyImportedRows(rows) {
       if (!pfId || !raw) continue;
       const yrs  = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
       if (!yrs.length) continue;
-      pausePeriods.push({ id: ++paCounter, pfId, years: new Set(yrs), label: lbl, raw });
+      pausePeriods.push({ id: ++paCounter, pfId, years: new Set(yrs), label: lbl, raw: yrs.join(', ') });
     }
   }
 
@@ -1143,6 +1236,8 @@ function _applyImportedRows(rows) {
     document.getElementById('conv-wrap').style.display = 'none';
   }
 
+  // Release the import lock and do one full render with all state in place
+  _importing = false;
   renderAll();
   showImportStatus(`Imported ${portfolios.length} portfolio${portfolios.length > 1 ? 's' : ''} successfully.`);
 }
@@ -1249,7 +1344,7 @@ function exportCSV() {
     eventRows.push(['Portfolio', 'Label', 'Global years paused']);
     pausePeriods.forEach(pa => {
       const pf  = portfolios.find(p => p.id === pa.pfId);
-      const yrs = [...pa.years].sort((a, b) => a - b).join(', ');
+      const yrs = (pa.years instanceof Set ? [...pa.years] : Array.isArray(pa.years) ? pa.years : []).sort((a, b) => a - b).join(', ');
       eventRows.push([pf?.name || pa.pfId, pa.label, yrs]);
     });
   } else {
@@ -1403,6 +1498,7 @@ function removeWithdrawal(i) {
 
 /* ─── Full re-render ────────────────────────────────────────────── */
 function renderAll() {
+  if (_importing) return;
   portfolios.forEach(pf => renderPortfolioCard(pf));
   renderSpendEvents();
   renderSpendAmounts();
