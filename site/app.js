@@ -12,6 +12,7 @@ let paCounter    = 0;
 let wdCounter    = 0;
 let chart        = null;
 let currency     = 'INR';
+let zoomMode     = 'x';   // 'x' | 'y' | 'xy'
 
 /* ─── Currency helpers ──────────────────────────────────────────── */
 function getSymbol() {
@@ -311,18 +312,18 @@ function updateChart() {
         zoom: {
           pan: {
             enabled:    true,
-            mode:       'x',
+            mode:       zoomMode === 'y' ? 'y' : zoomMode === 'xy' ? 'xy' : 'x',
             threshold:  5,
             onPan:      () => showResetZoom(),
           },
           zoom: {
             wheel:   { enabled: true, speed: 0.08 },
             pinch:   { enabled: true },
-            mode:    'x',
+            mode:    zoomMode,
             onZoom:  () => showResetZoom(),
           },
           limits: {
-            x: { minRange: 2 }   // don't zoom in beyond 2-year window
+            x: { minRange: 2 }
           }
         }
       },
@@ -344,6 +345,21 @@ function resetChartZoom() {
     chart.resetZoom();
     const btn = document.getElementById('reset-zoom-btn');
     if (btn) btn.style.display = 'none';
+  }
+}
+
+function setZoomMode(mode) {
+  zoomMode = mode;
+  // Update button active states
+  ['x', 'y', 'xy'].forEach(m => {
+    const btn = document.getElementById('zm-' + m);
+    if (btn) btn.className = 'zoom-mode-btn' + (m === mode ? ' active' : '');
+  });
+  // Update the live chart plugin without full rebuild — faster response
+  if (chart) {
+    chart.options.plugins.zoom.pan.mode  = mode === 'y' ? 'y' : mode === 'xy' ? 'xy' : 'x';
+    chart.options.plugins.zoom.zoom.mode = mode;
+    chart.update('none');
   }
 }
 

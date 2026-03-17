@@ -114,6 +114,32 @@ body {
   border-color: var(--color-accent);
 }
 
+/* ─── Zoom axis mode toggle ─────────────────────────────────────── */
+.zoom-mode-group {
+  display: flex;
+  border: 0.5px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.zoom-mode-btn {
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  border-right: 0.5px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+.zoom-mode-btn:last-child { border-right: none; }
+.zoom-mode-btn:hover { background: var(--color-bg-secondary); color: var(--color-text); }
+.zoom-mode-btn.active {
+  background: var(--color-accent);
+  color: #fff;
+}
+
 /* ─── Tabs ──────────────────────────────────────────────────────── */
 .tab-bar {
   display: flex; gap: 8px; margin-bottom: 1.5rem;
