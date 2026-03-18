@@ -252,7 +252,8 @@
        PANEL: PAUSE DEPOSITS
        Pause the annual deposit for a portfolio during a range of
        global years. Compounding still runs; only the deposit is
-       skipped. Years use range syntax: "3-6, 8, 10-12".
+       skipped. Supports: "3-6, 8, 10-12" and open-ended "27-I"
+       (I = infinity — pauses from year 27 to end of timeline).
        ═══════════════════════════════════════════════════════════ -->
   <div id="panel-pauses" style="display:none;">
 
@@ -265,6 +266,7 @@
       <p class="hint-label" style="margin-bottom:12px;">
         Enter <strong>global</strong> years (same timeline as the chart).
         Compounding continues during a pause — only the annual deposit is skipped.
+        Use <strong>N-I</strong> (e.g. <strong>27-I</strong>) to pause from year N to infinity.
       </p>
       <div class="transfer-form-grid">
         <div>
@@ -273,11 +275,11 @@
           <select id="pa-pf" class="sinput" style="width:100%;"></select>
         </div>
         <div>
-          <!-- Year range input: supports "3-6, 8, 10-12" syntax -->
+          <!-- Year range input: supports "3-6, 8, 10-12" and open-ended "27-I" syntax -->
           <!-- previewPauseYears() parses on input and shows a live preview -->
           <p class="field-label">Years to pause</p>
           <input type="text" id="pa-years" class="sinput"
-                 placeholder="e.g. 3-6, 8, 10-12" style="width:100%;"
+                 placeholder="e.g. 3-6, 8, 27-I" style="width:100%;"
                  oninput="previewPauseYears()" />
         </div>
         <div style="grid-column: 1 / -1;">

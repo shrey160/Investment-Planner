@@ -4,43 +4,112 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Multi-Portfolio Compound Interest Calculator</title>
+
+  <!--
+    ═══════════════════════════════════════════════════════════════
+    STYLESHEET
+    All visual styling, colour palette, and responsive rules.
+    ═══════════════════════════════════════════════════════════════
+  -->
   <style>
-/* ─── Reset & base ──────────────────────────────────────────────── */
+/*
+ * styles.css — Multi-Portfolio Compound Interest Calculator
+ * ─────────────────────────────────────────────────────────
+ * Table of contents
+ *   1. Reset & base
+ *   2. CSS custom properties (light mode)
+ *   3. Dark mode overrides
+ *   4. Body & app shell
+ *   5. Top bar (currency + export/import)
+ *   6. Summary row
+ *   7. Chart card
+ *   8.   Chart legend markers
+ *   9.   Chart controls (zoom axis, shading toggles, reset zoom)
+ *  10. Tab bar
+ *  11. Portfolio cards
+ *  12.   Inline editable value (click-to-type on sliders)
+ *  13. Event cards (spends, transfers, pauses, withdrawals)
+ *  14.   Pills (portfolio colour badges inside event cards)
+ *  15. Spend form
+ *  16. Transfer / Pause / Withdrawal form (shared grid)
+ *  17. Buttons (add, icon, collapse, currency, export, import)
+ *  18. Import status feedback
+ *  19. Form inputs (range slider, text/number sinput)
+ *  20. Toggle switch
+ *  21. Utility classes
+ */
+
+
+/* ─────────────────────────────────────────────────────────────────
+   1. RESET & BASE
+   Zero out browser default margins/padding; enforce border-box
+   sizing on every element so widths include padding & borders.
+   ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+
+/* ─────────────────────────────────────────────────────────────────
+   2. CSS CUSTOM PROPERTIES — LIGHT MODE
+   Warm linen palette: no pure whites anywhere.
+   Four background tiers create visual depth:
+     bg          — page background (lightest, warmest)
+     bg-card     — card surfaces, floats above the page
+     bg-secondary— recessed surfaces (tab bars, hover states)
+     bg-tertiary — deeply recessed (stat cards, inputs, slider track)
+   ───────────────────────────────────────────────────────────────── */
 :root {
-  --color-bg:           #f7f4f0;
-  --color-bg-card:      #fdfaf7;
-  --color-bg-secondary: #ede9e3;
-  --color-bg-tertiary:  #e2ddd6;
-  --color-border:       rgba(100,88,70,0.13);
-  --color-border-strong:rgba(100,88,70,0.28);
-  --color-text:         #2a2520;
-  --color-text-secondary:#6b6259;
-  --color-text-hint:    #9e958a;
-  --color-accent:       #2d6fa8;
-  --color-total:        #8a8278;
+  --color-bg:            #f7f4f0;   /* warm linen — page background       */
+  --color-bg-card:       #fdfaf7;   /* barely-there cream — card surface   */
+  --color-bg-secondary:  #ede9e3;   /* warm sand — recessed surfaces       */
+  --color-bg-tertiary:   #e2ddd6;   /* muted clay — inputs, stat cards     */
+
+  --color-border:        rgba(100, 88, 70, 0.13);  /* soft warm hairline   */
+  --color-border-strong: rgba(100, 88, 70, 0.28);  /* visible border       */
+
+  --color-text:           #2a2520;  /* warm near-black                     */
+  --color-text-secondary: #6b6259;  /* muted brown-grey                    */
+  --color-text-hint:      #9e958a;  /* placeholder / hint text             */
+
+  --color-accent: #2d6fa8;          /* blue — interactive elements         */
+  --color-total:  #8a8278;          /* grey — total line & dashes          */
+
+  /* Corner radii — used consistently across all components */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
 }
 
+
+/* ─────────────────────────────────────────────────────────────────
+   3. DARK MODE OVERRIDES
+   Follows the same warm-brown palette but inverted:
+   dark surfaces use brown-tinted darks, not cold greys.
+   ───────────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg:           #1e1c19;
-    --color-bg-card:      #252320;
-    --color-bg-secondary: #2e2b27;
-    --color-bg-tertiary:  #38342f;
-    --color-border:       rgba(255,245,230,0.09);
-    --color-border-strong:rgba(255,245,230,0.22);
-    --color-text:         #ede8e1;
-    --color-text-secondary:#a89f94;
-    --color-text-hint:    #6e6560;
-    --color-accent:       #5b9fd6;
-    --color-total:        #9e9890;
+    --color-bg:            #1e1c19;
+    --color-bg-card:       #252320;
+    --color-bg-secondary:  #2e2b27;
+    --color-bg-tertiary:   #38342f;
+
+    --color-border:        rgba(255, 245, 230, 0.09);
+    --color-border-strong: rgba(255, 245, 230, 0.22);
+
+    --color-text:           #ede8e1;
+    --color-text-secondary: #a89f94;
+    --color-text-hint:      #6e6560;
+
+    --color-accent: #5b9fd6;   /* lighter blue for dark backgrounds */
+    --color-total:  #9e9890;
   }
 }
 
+
+/* ─────────────────────────────────────────────────────────────────
+   4. BODY & APP SHELL
+   System font stack, warm background, generous line-height.
+   .app-container caps width and centres the layout.
+   ───────────────────────────────────────────────────────────────── */
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--color-bg);
@@ -50,33 +119,52 @@ body {
   padding: 1.5rem;
 }
 
-/* ─── App shell ─────────────────────────────────────────────────── */
 .app-container { max-width: 860px; margin: 0 auto; }
 
-/* ─── Top bar ───────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   5. TOP BAR — currency controls + CSV export / import
+   Flex row that wraps on narrow screens. The custom-currency
+   conversion inputs (.conversion-wrap) are hidden by default and
+   shown via JS when "Custom currency" is selected.
+   ───────────────────────────────────────────────────────────────── */
 .top-bar {
-  display: flex; align-items: center; flex-wrap: wrap;
-  gap: 10px; margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 1.25rem;
 }
 .currency-controls { display: flex; gap: 8px; }
-.conversion-wrap {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
-.conversion-wrap input[type="number"] { width: 90px; }
-.conversion-wrap input[type="text"]   { width: 48px; }
 
-/* ─── Summary row ───────────────────────────────────────────────── */
+.conversion-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.conversion-wrap input[type="number"] { width: 90px; }  /* rate input     */
+.conversion-wrap input[type="text"]   { width: 48px; }  /* symbol input   */
+
+
+/* ─────────────────────────────────────────────────────────────────
+   6. SUMMARY ROW
+   Auto-fit grid of stat cards, one per portfolio + optional Total.
+   Each card gets a left-border colour accent matching its portfolio.
+   ───────────────────────────────────────────────────────────────── */
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px; margin-bottom: 1.5rem;
+  gap: 10px;
+  margin-bottom: 1.5rem;
 }
 .summary-card {
   background: var(--color-bg-tertiary);
   border-radius: var(--radius-md);
   padding: 10px 12px;
-  border-left: 3px solid transparent;
+  border-left: 3px solid transparent;  /* overridden inline per portfolio */
 }
+/* The Total card uses a dashed border to match the dashed chart line */
 .summary-card.total {
   border-left: 3px dashed var(--color-total);
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
@@ -84,7 +172,12 @@ body {
 .summary-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 3px; }
 .summary-val   { font-size: 18px; font-weight: 500; color: var(--color-text); }
 
-/* ─── Chart card ────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   7. CHART CARD
+   The card wrapping the Chart.js canvas and its header controls.
+   .chart-wrapper sets the fixed pixel height the canvas fills.
+   ───────────────────────────────────────────────────────────────── */
 .chart-card {
   background: var(--color-bg-card);
   border: 0.5px solid var(--color-border);
@@ -93,20 +186,63 @@ body {
   margin-bottom: 2rem;
 }
 .chart-header {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 10px; margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
 }
-.legend { display: flex; gap: 14px; font-size: 12px; flex-wrap: wrap; }
+.legend      { display: flex; gap: 14px; font-size: 12px; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 5px; color: var(--color-text); font-size: 12px; }
-.legend-dot  { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
-.legend-dash { width: 18px; border-top: 2px dashed var(--color-total); display: inline-block; }
-.legend-spend-marker    { width: 2px; height: 12px; background: #D85A30; display: inline-block; border-radius: 1px; flex-shrink: 0; }
-.legend-pause-marker    { width: 12px; height: 10px; background: rgba(127,119,221,0.18); border: 1px dashed rgba(127,119,221,0.55); border-radius: 2px; display: inline-block; flex-shrink: 0; }
-.legend-withdrawal-marker { width: 12px; height: 10px; background: rgba(29,158,117,0.12); border: 1.5px dashed rgba(29,158,117,0.6); border-radius: 2px; display: inline-block; flex-shrink: 0; }
 .total-toggle { display: flex; align-items: center; gap: 8px; }
 .chart-wrapper { position: relative; width: 100%; height: 300px; }
 
-/* ─── Reset zoom button ─────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   8. CHART LEGEND MARKERS
+   Small inline shapes in the legend row that represent each
+   event type visually without relying on chart canvas space.
+   ───────────────────────────────────────────────────────────────── */
+
+/* Solid colour square — one per portfolio (colour set inline) */
+.legend-dot  { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+
+/* Dashed horizontal line — represents the Total line */
+.legend-dash { width: 18px; border-top: 2px dashed var(--color-total); display: inline-block; }
+
+/* Thin vertical bar — represents spend event markers on the chart */
+.legend-spend-marker {
+  width: 2px; height: 12px;
+  background: #D85A30;
+  display: inline-block; border-radius: 1px; flex-shrink: 0;
+}
+
+/* Dashed rectangle — represents pause period shading on the chart */
+.legend-pause-marker {
+  width: 12px; height: 10px;
+  background: rgba(127, 119, 221, 0.18);
+  border: 1px dashed rgba(127, 119, 221, 0.55);
+  border-radius: 2px; display: inline-block; flex-shrink: 0;
+}
+
+/* Dashed rectangle (green tint) — represents withdrawal period shading */
+.legend-withdrawal-marker {
+  width: 12px; height: 10px;
+  background: rgba(29, 158, 117, 0.12);
+  border: 1.5px dashed rgba(29, 158, 117, 0.6);
+  border-radius: 2px; display: inline-block; flex-shrink: 0;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   9. CHART CONTROLS — zoom axis, shading toggles, reset zoom
+   All use the shared .zoom-mode-btn style. Active state = accent
+   blue fill. .zoom-mode-group wraps the X/Y/XY trio into a
+   visually connected segmented control.
+   ───────────────────────────────────────────────────────────────── */
+
+/* Reset zoom — hidden until the user zooms or pans */
 .reset-zoom-btn {
   padding: 4px 10px;
   font-size: 12px;
@@ -124,13 +260,15 @@ body {
   border-color: var(--color-accent);
 }
 
-/* ─── Zoom axis mode toggle ─────────────────────────────────────── */
+/* Segmented control container for X / Y / XY buttons */
 .zoom-mode-group {
   display: flex;
   border: 0.5px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
+
+/* Individual segment or standalone toggle button */
 .zoom-mode-btn {
   padding: 3px 9px;
   font-size: 11px;
@@ -145,39 +283,64 @@ body {
 }
 .zoom-mode-btn:last-child { border-right: none; }
 .zoom-mode-btn:hover { background: var(--color-bg-secondary); color: var(--color-text); }
+
+/* Active state: filled with accent blue */
 .zoom-mode-btn.active {
   background: var(--color-accent);
   color: #fff;
 }
 
-/* ─── Tabs ──────────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   10. TAB BAR
+   Five tabs switching between content panels. The active tab gets
+   the card background so it appears to "lift" off the tab bar.
+   ───────────────────────────────────────────────────────────────── */
 .tab-bar {
-  display: flex; gap: 8px; margin-bottom: 1.5rem;
-  background: var(--color-bg-secondary); padding: 6px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+  background: var(--color-bg-secondary);
+  padding: 6px;
   border-radius: var(--radius-lg);
+  flex-wrap: wrap;
 }
 .tab-btn {
-  padding: 7px 18px; font-size: 14px; cursor: pointer;
+  padding: 7px 18px;
+  font-size: 14px;
+  cursor: pointer;
   border-radius: var(--radius-md);
   border: 0.5px solid var(--color-border-strong);
-  background: transparent; color: var(--color-text-secondary);
+  background: transparent;
+  color: var(--color-text-secondary);
   transition: all 0.15s;
 }
 .tab-btn.active {
-  background: var(--color-bg-card); color: var(--color-text);
-  font-weight: 500; border-color: var(--color-border-strong);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  font-weight: 500;
+  border-color: var(--color-border-strong);
 }
 .tab-btn:hover:not(.active) { color: var(--color-text); }
 
-/* ─── Portfolio cards ───────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   11. PORTFOLIO CARDS
+   Each portfolio is a .pf-card injected into #pf-container.
+   Inside: a header row, three stat cells, and a sliders grid.
+   ───────────────────────────────────────────────────────────────── */
 .pf-card {
   background: var(--color-bg-card);
   border: 0.5px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem; margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
 }
+/* Header: colour dot + editable name + collapse/remove buttons */
 .pf-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
-.pf-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.pf-dot    { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+/* Name is a bare input — looks like plain text until focused */
 .pf-name {
   font-size: 15px; font-weight: 500; color: var(--color-text);
   border: none; background: transparent; outline: none;
@@ -185,47 +348,61 @@ body {
 }
 .pf-name:focus { border-bottom: 1px solid var(--color-border-strong); }
 
+/* Three stat cells: Final / Deposited / Interest */
 .pf-stats-grid {
-  display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
-.pf-stat-card {
-  background: var(--color-bg-tertiary);
-  border-radius: var(--radius-md); padding: 8px 10px;
-}
+.pf-stat-card  { background: var(--color-bg-tertiary); border-radius: var(--radius-md); padding: 8px 10px; }
 .pf-stat-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 2px; }
 .pf-stat-val   { font-size: 15px; font-weight: 500; color: var(--color-text); }
 
-.pf-sliders {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 10px 20px; margin-top: 12px;
-}
-.pf-row { display: flex; flex-direction: column; gap: 4px; }
+/* Two-column grid for the six parameter sliders */
+.pf-sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-top: 12px; }
+.pf-row     { display: flex; flex-direction: column; gap: 4px; }
 .pf-row-label {
   font-size: 12px; color: var(--color-text-secondary);
   display: flex; justify-content: space-between;
 }
 
-/* ─── Inline editable value ─────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   12. INLINE EDITABLE VALUE
+   The value label next to each slider is clickable (.pf-row-val).
+   Clicking replaces it with an <input> (.pf-row-val-input) that
+   commits on Enter/blur and reverts on Escape.
+   ───────────────────────────────────────────────────────────────── */
 .pf-row-val {
   font-size: 13px; font-weight: 500; color: var(--color-text);
-  cursor: pointer; border-bottom: 1px dashed transparent;
-  transition: border-color 0.15s; user-select: none;
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.15s;
+  user-select: none;
 }
-.pf-row-val:hover { border-bottom-color: var(--color-border-strong); color: var(--color-accent); }
+.pf-row-val:hover {
+  border-bottom-color: var(--color-border-strong);
+  color: var(--color-accent);
+}
 .pf-row-val-input {
   font-size: 13px; font-weight: 500; color: var(--color-text);
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius-sm); padding: 1px 5px;
-  width: 90px; text-align: right; outline: none;
+  border-radius: var(--radius-sm);
+  padding: 1px 5px; width: 90px; text-align: right; outline: none;
 }
 
-/* ─── Spend / Transfer event cards ─────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   13. EVENT CARDS — spends, transfers, pauses, withdrawals
+   Shared card style used in all four event lists.
+   ───────────────────────────────────────────────────────────────── */
 .event-card {
   background: var(--color-bg-card);
   border: 0.5px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 10px 14px; margin-bottom: 10px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
 }
 .event-header {
   display: flex; align-items: flex-start;
@@ -234,50 +411,74 @@ body {
 .event-title { font-size: 14px; font-weight: 500; color: var(--color-text); margin-bottom: 2px; }
 .event-year  { font-size: 12px; color: var(--color-text-secondary); }
 
+/* Editable title input inside a spend event card */
 .event-title-input {
-  font-weight: 500;
-  font-size: 13px;
-  width: 100%;
-  background: transparent;
-  border-color: transparent;
-  padding: 2px 4px;
-  margin-bottom: 2px;
+  font-weight: 500; font-size: 13px; width: 100%;
+  background: transparent; border-color: transparent;
+  padding: 2px 4px; margin-bottom: 2px;
 }
 .event-title-input:hover { border-color: var(--color-border); }
 .event-title-input:focus { border-color: var(--color-accent); background: var(--color-bg-secondary); }
-.pills-row   { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.pf-pill {
-  display: flex; align-items: center; gap: 6px;
-  padding: 4px 10px; border-radius: 20px;
-  font-size: 12px; font-weight: 500;
-}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   14. PILLS — portfolio colour badges inside event cards
+   Each pill shows a coloured dot + portfolio name + amount.
+   Background is the portfolio's hex colour at ~12% opacity (set
+   inline in JS). Transfer cards also use a plain text arrow.
+   ───────────────────────────────────────────────────────────────── */
+.pills-row  { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.pf-pill    { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
 .pf-pill-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 .transfer-arrow { font-size: 16px; color: var(--color-text-secondary); }
 
-/* ─── Spend form ────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   15. SPEND FORM
+   Two-column grid: year (narrow) + label (fills remaining space).
+   Per-portfolio amount rows are injected by renderSpendAmounts().
+   ───────────────────────────────────────────────────────────────── */
 .spend-form-grid {
   display: grid; grid-template-columns: 80px 1fr;
   gap: 10px; margin-bottom: 12px;
 }
 .spend-form-grid input { width: 100%; }
+
+/* Amount row per portfolio: dot + name + currency symbol + input */
 .pf-amount-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .pf-amount-row .pf-amount-name { font-size: 13px; color: var(--color-text); min-width: 100px; flex: 1; }
 .pf-amount-row input { width: 110px; text-align: right; }
 
-/* ─── Transfer form ─────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   16. TRANSFER / PAUSE / WITHDRAWAL FORM GRID
+   Shared two-column responsive grid used by three panels.
+   Full-width fields use grid-column: 1 / -1 inline.
+   Dropdowns get a custom chevron via background-image.
+   ───────────────────────────────────────────────────────────────── */
 .transfer-form-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 4px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px 16px; margin-bottom: 4px;
 }
 .transfer-form-grid input,
 .transfer-form-grid select { width: 100%; }
+
+/* Custom dropdown arrow (no system appearance) */
 select.sinput {
   appearance: none; -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239e958a'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center;
-  padding-right: 28px; cursor: pointer;
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
 }
 
-/* ─── Buttons ───────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   17. BUTTONS
+   ───────────────────────────────────────────────────────────────── */
+
+/* Full-width "add" button at the bottom of each panel/form */
 .add-btn {
   width: 100%; padding: 10px; font-size: 14px; cursor: pointer;
   border-radius: var(--radius-md);
@@ -286,17 +487,23 @@ select.sinput {
   transition: background 0.15s; margin-top: 4px;
 }
 .add-btn:hover { background: var(--color-bg-secondary); }
+
+/* Small × remove button inside cards */
 .icon-btn {
   border: none; background: none; cursor: pointer;
   color: var(--color-text-secondary); padding: 0 4px;
   font-size: 16px; line-height: 1;
 }
 .icon-btn:hover { color: var(--color-text); }
+
+/* "− collapse / + expand" text button in portfolio card headers */
 .collapse-btn {
   border: none; background: none; cursor: pointer;
   font-size: 13px; color: var(--color-text-secondary); padding: 0;
 }
 .collapse-btn:hover { color: var(--color-text); }
+
+/* Currency toggle buttons (₹ Rupee / Custom currency) */
 .cur-btn {
   padding: 5px 14px; font-size: 13px; cursor: pointer;
   border-radius: var(--radius-sm);
@@ -309,80 +516,80 @@ select.sinput {
   border-color: var(--color-accent); font-weight: 500;
 }
 
-/* ─── Export button ─────────────────────────────────────────────── */
+/* Export CSV button — pushed to the right via margin-left: auto */
 .export-btn {
   margin-left: auto;
-  padding: 5px 14px;
-  font-size: 13px;
-  cursor: pointer;
+  padding: 5px 14px; font-size: 13px; cursor: pointer;
   border-radius: var(--radius-sm);
   border: 0.5px solid var(--color-border-strong);
-  background: transparent;
-  color: var(--color-text-secondary);
-  transition: all 0.15s;
-  white-space: nowrap;
+  background: transparent; color: var(--color-text-secondary);
+  transition: all 0.15s; white-space: nowrap;
 }
-.export-btn:hover {
-  background: var(--color-bg-secondary);
-  color: var(--color-text);
-}
+.export-btn:hover { background: var(--color-bg-secondary); color: var(--color-text); }
 
-/* ─── Import button ─────────────────────────────────────────────── */
+/* Import CSV — a <label> styled as a button (wraps hidden file input) */
 .import-btn {
-  padding: 5px 14px;
-  font-size: 13px;
-  cursor: pointer;
+  padding: 5px 14px; font-size: 13px; cursor: pointer;
   border-radius: var(--radius-sm);
   border: 0.5px solid var(--color-border-strong);
-  background: transparent;
-  color: var(--color-text-secondary);
-  transition: all 0.15s;
-  white-space: nowrap;
-  user-select: none;
+  background: transparent; color: var(--color-text-secondary);
+  transition: all 0.15s; white-space: nowrap; user-select: none;
 }
-.import-btn:hover {
-  background: var(--color-bg-secondary);
-  color: var(--color-text);
-}
+.import-btn:hover { background: var(--color-bg-secondary); color: var(--color-text); }
 
+
+/* ─────────────────────────────────────────────────────────────────
+   18. IMPORT STATUS FEEDBACK
+   Brief message shown after a CSV import attempt.
+   JS adds .success or .error class, then hides after 4 seconds.
+   ───────────────────────────────────────────────────────────────── */
 .import-status {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
+  font-size: 12px; padding: 4px 10px;
+  border-radius: var(--radius-sm); white-space: nowrap;
 }
 .import-status.success {
-  background: #e6f4ea;
-  color: #1e6e38;
-  border: 0.5px solid #a8d5b5;
+  background: #e6f4ea; color: #1e6e38; border: 0.5px solid #a8d5b5;
 }
 .import-status.error {
-  background: #fce8e8;
-  color: #a32d2d;
-  border: 0.5px solid #f09595;
+  background: #fce8e8; color: #a32d2d; border: 0.5px solid #f09595;
 }
-
 @media (prefers-color-scheme: dark) {
   .import-status.success { background: #1a3325; color: #6fcf97; border-color: #2d5a40; }
   .import-status.error   { background: #3a1a1a; color: #f09595; border-color: #6b2c2c; }
 }
 
-/* ─── Form inputs ───────────────────────────────────────────────── */
-input[type="range"] { width: 100%; accent-color: var(--color-accent); background: transparent; }
+
+/* ─────────────────────────────────────────────────────────────────
+   19. FORM INPUTS — range slider + sinput (text/number/select)
+   Range sliders use a custom track and thumb to match the warm
+   palette. The thumb is accent blue; the track is bg-tertiary.
+   .sinput is used for all text/number inputs and selects across
+   every tab panel.
+   ───────────────────────────────────────────────────────────────── */
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-accent);
+  background: transparent;
+}
+/* Custom track — warm recessed trough */
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px; border-radius: 2px; background: var(--color-bg-tertiary);
 }
 input[type="range"]::-moz-range-track {
   height: 4px; border-radius: 2px; background: var(--color-bg-tertiary);
 }
+/* Custom thumb — accent blue circle */
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 16px; height: 16px;
-  border-radius: 50%; background: var(--color-accent); margin-top: -6px; cursor: pointer;
+  border-radius: 50%; background: var(--color-accent);
+  margin-top: -6px; cursor: pointer;
 }
 input[type="range"]::-moz-range-thumb {
   width: 16px; height: 16px; border-radius: 50%;
   border: none; background: var(--color-accent); cursor: pointer;
 }
+
+/* Standard text/number input used throughout the forms */
 .sinput {
   padding: 6px 8px; font-size: 13px;
   border: 0.5px solid var(--color-border);
@@ -390,87 +597,216 @@ input[type="range"]::-moz-range-thumb {
   background: var(--color-bg-tertiary);
   color: var(--color-text); outline: none;
 }
-.sinput:focus { border-color: var(--color-accent); background: var(--color-bg-secondary); }
+.sinput:focus {
+  border-color: var(--color-accent);
+  background: var(--color-bg-secondary);
+}
 
-/* ─── Toggle switch ─────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   20. TOGGLE SWITCH
+   Custom checkbox styled as a pill toggle. The hidden <input>
+   controls state; .tog-track is the pill; .tog-thumb is the knob.
+   Used for: inflate deposits, inflate withdrawal, show total,
+             pause/withdrawal shading, total line.
+   ───────────────────────────────────────────────────────────────── */
 .tog { position: relative; width: 36px; height: 20px; flex-shrink: 0; display: inline-block; }
-.tog input { opacity: 0; width: 0; height: 0; }
+.tog input { opacity: 0; width: 0; height: 0; }  /* hidden — state only */
+
+/* Pill background: grey when unchecked, accent when checked */
 .tog-track {
   position: absolute; inset: 0; border-radius: 10px;
-  cursor: pointer; transition: background 0.2s; background: #888780;
+  cursor: pointer; transition: background 0.2s;
+  background: #888780;  /* unchecked colour */
 }
 .tog input:checked + .tog-track { background: var(--color-accent); }
+
+/* The circular knob — warm off-white instead of pure white */
 .tog-thumb {
-  position: absolute; top: 2px; width: 16px; height: 16px;
-  border-radius: 50%; background: #f5f0ea;
+  position: absolute; top: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #f5f0ea;
   transition: transform 0.2s; pointer-events: none;
-  transform: translateX(2px);
+  transform: translateX(2px);   /* unchecked position */
 }
 .tog input:checked ~ .tog-thumb { transform: translateX(18px); }
+
+/* Row that centres the inflate-deposits toggle in the sliders grid */
 .inflate-toggle-row {
   display: flex; align-items: center; justify-content: center;
   gap: 8px; padding-top: 14px;
 }
 
-/* ─── Utility ───────────────────────────────────────────────────── */
-.muted-label   { font-size: 13px; color: var(--color-text-secondary); }
-.hint-label    { font-size: 12px; color: var(--color-text-hint); }
-.section-title { font-size: 13px; font-weight: 500; color: var(--color-text); margin-bottom: 12px; }
-.field-label   { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
-.no-items      { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1rem; }
+/* ─── Maturity action row ─────────────────────────────────────── */
+/* Spans the full two-column slider grid */
+.maturity-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--color-border);
+  margin-top: 6px;
+}
+.maturity-options {
+  display: flex;
+  gap: 6px;
+}
+/* Pill-style radio button */
+.maturity-opt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--color-border-strong);
+  background: transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+.maturity-opt input[type="radio"] { display: none; }
+.maturity-opt:hover { background: var(--color-bg-secondary); color: var(--color-text); }
+.maturity-opt.active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+.maturity-target-select { flex-shrink: 0; }
+
+
+/* ─────────────────────────────────────────────────────────────────
+   21. UTILITY CLASSES
+   Reusable type treatments applied across all panels.
+   ───────────────────────────────────────────────────────────────── */
+.muted-label   { font-size: 13px; color: var(--color-text-secondary); }  /* secondary text next to controls */
+.hint-label    { font-size: 12px; color: var(--color-text-hint); }        /* placeholder hints, parenthetical notes */
+.section-title { font-size: 13px; font-weight: 500; color: var(--color-text); margin-bottom: 12px; }  /* form card headings */
+.field-label   { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }           /* input labels */
+.no-items      { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1rem; }           /* empty-state messages */
 
   </style>
 </head>
 <body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     APP SHELL
+     Single max-width container centred on the page.
+     ═══════════════════════════════════════════════════════════════ -->
 <div class="app-container">
 
+  <!-- ───────────────────────────────────────────────────────────
+       TOP BAR
+       Currency controls (left) + CSV export / import (right).
+       The custom-currency fields (#conv-wrap) are hidden until
+       the user clicks "Custom currency".
+       ─────────────────────────────────────────────────────────── -->
   <div class="top-bar">
+
+    <!-- Currency selection -->
     <div class="currency-controls">
-      <button class="cur-btn active" id="cur-inr" onclick="setCurrency('INR')">₹ Rupee</button>
-      <button class="cur-btn" id="cur-other" onclick="setCurrency('OTHER')">Custom currency</button>
+      <button class="cur-btn active" id="cur-inr"   onclick="setCurrency('INR')">₹ Rupee</button>
+      <button class="cur-btn"        id="cur-other" onclick="setCurrency('OTHER')">Custom currency</button>
     </div>
+
+    <!-- Custom currency conversion inputs (hidden by default) -->
     <div id="conv-wrap" class="conversion-wrap" style="display:none;">
       <span class="muted-label">₹1 =</span>
+      <!-- Conversion ratio: divide 1 by the exchange rate, e.g. 1÷91≈0.011 for USD -->
       <input type="number" id="conv-rate" value="0.011" step="0.001" min="0.0001" oninput="renderAll()" />
+      <!-- Currency symbol displayed before all formatted values -->
       <input type="text"   id="conv-sym"  value="$" oninput="renderAll()" placeholder="symbol" />
       <span class="hint-label">(e.g. 1÷91 ≈ 0.011 for USD)</span>
     </div>
+
+    <!-- CSV export — downloads all state as a structured CSV file -->
     <button class="export-btn" onclick="exportCSV()" title="Download all data as CSV">
       ↓ Export CSV
     </button>
+
+    <!-- CSV import — label wraps a hidden file input for styling -->
     <label class="import-btn" title="Restore from a previously exported CSV">
       ↑ Import CSV
       <input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="importCSV(this)" />
     </label>
+
+    <!-- Status message shown briefly after import (success or error) -->
     <div id="import-status" class="import-status" style="display:none;"></div>
   </div>
 
+  <!-- ───────────────────────────────────────────────────────────
+       SUMMARY ROW
+       One stat card per portfolio showing the final balance.
+       Populated dynamically by updateSummary() in app.js.
+       ─────────────────────────────────────────────────────────── -->
   <div id="summary-grid" class="summary-grid"></div>
 
+  <!-- ───────────────────────────────────────────────────────────
+       CHART CARD
+       Line chart (Chart.js canvas) with controls:
+         • Legend — colour-coded portfolio names + event markers
+         • Zoom axis buttons — X / Y / XY scroll-wheel zoom mode
+         • Pause / Withdrawal shading toggles
+         • Reset zoom — appears only when chart is zoomed
+         • Show total — dashed grey sum line toggle
+       ─────────────────────────────────────────────────────────── -->
   <div class="chart-card">
     <div class="chart-header">
+
+      <!-- Legend: populated by updateChart() in app.js -->
       <div id="legend" class="legend"></div>
+
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+
+        <!-- Zoom axis selector: controls which axis scroll/pinch zooms -->
         <div class="zoom-mode-group" title="Scroll wheel / pinch zoom axis">
           <button class="zoom-mode-btn active" id="zm-x"  onclick="setZoomMode('x')">X</button>
           <button class="zoom-mode-btn"        id="zm-y"  onclick="setZoomMode('y')">Y</button>
           <button class="zoom-mode-btn"        id="zm-xy" onclick="setZoomMode('xy')">XY</button>
         </div>
+
+        <!-- Pause shading toggle: shows/hides coloured boxes for deposit-pause periods -->
         <button class="zoom-mode-btn active" id="pause-highlight-btn"
                 onclick="togglePauseHighlight()"
                 title="Show/hide pause period shading on chart"
                 style="border-radius:var(--radius-sm);border:0.5px solid var(--color-border-strong);">
           Pause shading
         </button>
+
+        <!-- Withdrawal shading toggle: shows/hides coloured boxes for withdrawal periods -->
         <button class="zoom-mode-btn active" id="wd-highlight-btn"
                 onclick="toggleWithdrawalHighlight()"
                 title="Show/hide withdrawal period shading on chart"
                 style="border-radius:var(--radius-sm);border:0.5px solid var(--color-border-strong);">
           Withdrawal shading
         </button>
-        <button id="reset-zoom-btn" class="reset-zoom-btn" onclick="resetChartZoom()" style="display:none;" title="Reset zoom to full view">
+
+        <!-- Base year toggle: switches X axis between "Yr N" and actual calendar years.
+             The year input is hidden until the toggle is switched on. -->
+        <button class="zoom-mode-btn" id="base-year-tog-btn"
+                onclick="toggleBaseYear()"
+                title="Show calendar years on X axis"
+                style="border-radius:var(--radius-sm);border:0.5px solid var(--color-border-strong);">
+          Calendar years
+        </button>
+        <div id="base-year-input-wrap" style="display:none;align-items:center;gap:5px;">
+          <span class="muted-label" style="font-size:12px;white-space:nowrap;">Base year</span>
+          <input type="number" id="base-year-input"
+                 class="sinput" style="width:72px;padding:3px 6px;font-size:12px;"
+                 min="1900" max="2200" oninput="setBaseYear()" />
+        </div>
+
+        <!-- Reset zoom: hidden until the user zooms or pans -->
+        <button id="reset-zoom-btn" class="reset-zoom-btn"
+                onclick="resetChartZoom()" style="display:none;"
+                title="Reset zoom to full view">
           ↺ Reset zoom
         </button>
+
+        <!-- Show total line toggle -->
         <div class="total-toggle">
           <label class="tog">
             <input type="checkbox" id="total-tog" checked onchange="renderAll()" />
@@ -478,34 +814,57 @@ input[type="range"]::-moz-range-thumb {
           </label>
           <span class="muted-label">Show total</span>
         </div>
+
       </div>
     </div>
+
+    <!-- Chart canvas — Chart.js renders into this element -->
     <div class="chart-wrapper">
       <canvas id="mainChart"></canvas>
     </div>
   </div>
 
+  <!-- ───────────────────────────────────────────────────────────
+       TAB BAR
+       Switches between the five content panels below.
+       switchTab() in app.js shows/hides the matching panel.
+       ─────────────────────────────────────────────────────────── -->
   <div class="tab-bar">
-    <button class="tab-btn active" id="tab-portfolios"   onclick="switchTab('portfolios')">Portfolios</button>
-    <button class="tab-btn"        id="tab-spends"       onclick="switchTab('spends')">Major spends</button>
-    <button class="tab-btn"        id="tab-transfers"    onclick="switchTab('transfers')">Transfers</button>
-    <button class="tab-btn"        id="tab-pauses"       onclick="switchTab('pauses')">Pause deposits</button>
-    <button class="tab-btn"        id="tab-withdrawals"  onclick="switchTab('withdrawals')">Withdrawals</button>
+    <button class="tab-btn active" id="tab-portfolios"  onclick="switchTab('portfolios')">Portfolios</button>
+    <button class="tab-btn"        id="tab-spends"      onclick="switchTab('spends')">Major spends</button>
+    <button class="tab-btn"        id="tab-transfers"   onclick="switchTab('transfers')">Transfers</button>
+    <button class="tab-btn"        id="tab-pauses"      onclick="switchTab('pauses')">Pause deposits</button>
+    <button class="tab-btn"        id="tab-withdrawals" onclick="switchTab('withdrawals')">Withdrawals</button>
   </div>
 
-  <!-- Portfolios panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: PORTFOLIOS
+       Portfolio cards are injected here by addPortfolio() /
+       renderPortfolioCard() in app.js. Each card gets an id of
+       "pf-{id}" so renderPortfolioCard() can find and update it.
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-portfolios">
     <div id="pf-container"></div>
     <button class="add-btn" onclick="addPortfolio()">+ Add portfolio</button>
   </div>
 
-  <!-- Spends panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: MAJOR SPENDS
+       Saved spend events are listed in #spends-list (rendered by
+       renderSpendEvents()). The add-form below builds per-portfolio
+       amount inputs dynamically into #sp-pf-amounts.
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-spends" style="display:none;">
+
+    <!-- Existing spend events list (rendered dynamically) -->
     <div id="spends-list"></div>
+
+    <!-- Add spend form -->
     <div class="pf-card">
       <p class="section-title">Add spend event</p>
       <div class="spend-form-grid">
         <div>
+          <!-- Global year on the shared timeline -->
           <p class="field-label">Year</p>
           <input type="number" id="sp-yr"  class="sinput" placeholder="e.g. 5" min="1" max="50" />
         </div>
@@ -514,104 +873,159 @@ input[type="range"]::-moz-range-thumb {
           <input type="text"   id="sp-lbl" class="sinput" placeholder="e.g. Buy car" />
         </div>
       </div>
+      <!-- Per-portfolio amount inputs injected by renderSpendAmounts() -->
       <p class="field-label">Amount per portfolio <span class="hint-label">(leave blank to skip)</span></p>
       <div id="sp-pf-amounts"></div>
       <button class="add-btn" onclick="addSpend()">+ Add spend event</button>
     </div>
   </div>
 
-  <!-- Transfers panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: TRANSFERS
+       Move an amount from one portfolio to another at a given
+       global year. Both dropdown selects are populated by
+       refreshTransferSelects() whenever portfolios change.
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-transfers" style="display:none;">
+
+    <!-- Existing transfers list (rendered dynamically) -->
     <div id="transfers-list"></div>
+
+    <!-- Add transfer form -->
     <div class="pf-card">
       <p class="section-title">Add transfer</p>
       <div class="transfer-form-grid">
         <div>
+          <!-- Global year the money moves between portfolios -->
           <p class="field-label">Year</p>
-          <input type="number" id="tr-yr"   class="sinput" placeholder="e.g. 10" min="1" max="50" />
+          <input type="number" id="tr-yr"  class="sinput" placeholder="e.g. 10" min="1" max="50" />
         </div>
         <div>
+          <!-- Amount to move (stored in base rupee value) -->
           <p class="field-label">Amount</p>
-          <input type="number" id="tr-amt"  class="sinput" placeholder="e.g. 500000" min="1" />
+          <input type="number" id="tr-amt" class="sinput" placeholder="e.g. 500000" min="1" />
         </div>
         <div>
+          <!-- Source portfolio — populated by refreshTransferSelects() -->
           <p class="field-label">From portfolio</p>
           <select id="tr-from" class="sinput"></select>
         </div>
         <div>
+          <!-- Destination portfolio — populated by refreshTransferSelects() -->
           <p class="field-label">To portfolio</p>
-          <select id="tr-to"   class="sinput"></select>
+          <select id="tr-to" class="sinput"></select>
         </div>
         <div style="grid-column: 1 / -1;">
           <p class="field-label">Label <span class="hint-label">(optional)</span></p>
-          <input type="text" id="tr-lbl" class="sinput" placeholder="e.g. Rebalance to equity" style="width:100%;" />
+          <input type="text" id="tr-lbl" class="sinput"
+                 placeholder="e.g. Rebalance to equity" style="width:100%;" />
         </div>
       </div>
       <button class="add-btn" onclick="addTransfer()" style="margin-top:10px;">+ Add transfer</button>
     </div>
   </div>
 
-  <!-- Pauses panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: PAUSE DEPOSITS
+       Pause the annual deposit for a portfolio during a range of
+       global years. Compounding still runs; only the deposit is
+       skipped. Supports: "3-6, 8, 10-12" and open-ended "27-I"
+       (I = infinity — pauses from year 27 to end of timeline).
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-pauses" style="display:none;">
+
+    <!-- Existing pause periods list (rendered dynamically) -->
     <div id="pauses-list"></div>
+
+    <!-- Add pause form -->
     <div class="pf-card">
       <p class="section-title">Pause deposits for a portfolio</p>
       <p class="hint-label" style="margin-bottom:12px;">
-        Enter <strong>global</strong> years (same timeline as the chart). Compounding continues during a pause — only the annual deposit is skipped.
+        Enter <strong>global</strong> years (same timeline as the chart).
+        Compounding continues during a pause — only the annual deposit is skipped.
+        Use <strong>N-I</strong> (e.g. <strong>27-I</strong>) to pause from year N to infinity.
       </p>
       <div class="transfer-form-grid">
         <div>
+          <!-- Portfolio whose deposits are paused — populated by refreshPauseSelect() -->
           <p class="field-label">Portfolio</p>
           <select id="pa-pf" class="sinput" style="width:100%;"></select>
         </div>
         <div>
+          <!-- Year range input: supports "3-6, 8, 10-12" and open-ended "27-I" syntax -->
+          <!-- previewPauseYears() parses on input and shows a live preview -->
           <p class="field-label">Years to pause</p>
-          <input type="text" id="pa-years" class="sinput" placeholder="e.g. 3-6, 8, 10-12" style="width:100%;" oninput="previewPauseYears()" />
+          <input type="text" id="pa-years" class="sinput"
+                 placeholder="e.g. 3-6, 8, 27-I" style="width:100%;"
+                 oninput="previewPauseYears()" />
         </div>
         <div style="grid-column: 1 / -1;">
           <p class="field-label">Label <span class="hint-label">(optional)</span></p>
-          <input type="text" id="pa-lbl" class="sinput" placeholder="e.g. Career break" style="width:100%;" />
+          <input type="text" id="pa-lbl" class="sinput"
+                 placeholder="e.g. Career break" style="width:100%;" />
         </div>
       </div>
+      <!-- Live parse preview: shows which years will be paused, or an error message -->
       <p id="pa-parse-preview" class="hint-label" style="margin-top:6px;min-height:16px;"></p>
       <button class="add-btn" onclick="addPause()" style="margin-top:8px;">+ Add pause</button>
     </div>
   </div>
 
-  <!-- Withdrawals panel -->
+  <!-- ═══════════════════════════════════════════════════════════
+       PANEL: WITHDRAWALS
+       A recurring annual withdrawal from a portfolio over a
+       global year range. The amount can be inflation-adjusted
+       each year to preserve real purchasing power.
+       ═══════════════════════════════════════════════════════════ -->
   <div id="panel-withdrawals" style="display:none;">
+
+    <!-- Existing withdrawal plans list (rendered dynamically) -->
     <div id="withdrawals-list"></div>
+
+    <!-- Add withdrawal form -->
     <div class="pf-card">
       <p class="section-title">Add continuous withdrawal</p>
       <p class="hint-label" style="margin-bottom:12px;">
-        A fixed annual amount withdrawn from a portfolio each year over a range. Optionally inflated each year to preserve purchasing power.
+        A fixed annual amount withdrawn from a portfolio each year over a range.
+        Optionally inflated each year to preserve purchasing power.
       </p>
       <div class="transfer-form-grid">
         <div>
+          <!-- Portfolio to withdraw from — populated by refreshWithdrawalSelect() -->
           <p class="field-label">Portfolio</p>
           <select id="wd-pf" class="sinput" style="width:100%;"></select>
         </div>
         <div>
           <p class="field-label">Label <span class="hint-label">(optional)</span></p>
-          <input type="text" id="wd-lbl" class="sinput" placeholder="e.g. Living expenses" style="width:100%;" />
+          <input type="text" id="wd-lbl" class="sinput"
+                 placeholder="e.g. Living expenses" style="width:100%;" />
         </div>
         <div>
+          <!-- Global year withdrawals begin -->
           <p class="field-label">Start year (global)</p>
-          <input type="number" id="wd-start" class="sinput" placeholder="e.g. 10" min="0" max="99" style="width:100%;" />
+          <input type="number" id="wd-start" class="sinput"
+                 placeholder="e.g. 10" min="0" max="99" style="width:100%;" />
         </div>
         <div>
+          <!-- Global year withdrawals end (inclusive) -->
           <p class="field-label">End year (global)</p>
-          <input type="number" id="wd-end" class="sinput" placeholder="e.g. 30" min="0" max="99" style="width:100%;" />
+          <input type="number" id="wd-end" class="sinput"
+                 placeholder="e.g. 30" min="0" max="99" style="width:100%;" />
         </div>
         <div>
+          <!-- Base annual withdrawal in rupees (or current display currency) -->
           <p class="field-label">Annual withdrawal amount</p>
-          <input type="number" id="wd-amount" class="sinput" placeholder="e.g. 600000" min="1" style="width:100%;" />
+          <input type="number" id="wd-amount" class="sinput"
+                 placeholder="e.g. 600000" min="1" style="width:100%;" />
         </div>
         <div>
+          <!-- Inflation rate applied to the withdrawal when the toggle is on -->
           <p class="field-label">Inflation rate (%) <span class="hint-label">(if adjusting)</span></p>
-          <input type="number" id="wd-infrate" class="sinput" placeholder="e.g. 6" min="0" max="30" step="0.5" style="width:100%;" />
+          <input type="number" id="wd-infrate" class="sinput"
+                 placeholder="e.g. 6" min="0" max="30" step="0.5" style="width:100%;" />
         </div>
         <div style="grid-column: 1 / -1; display:flex; align-items:center; gap:10px; padding-top:4px;">
+          <!-- Toggle: when on, withdrawal grows by the inflation rate each year -->
           <label class="tog">
             <input type="checkbox" id="wd-inflate" checked />
             <span class="tog-track"></span><span class="tog-thumb"></span>
@@ -623,40 +1037,147 @@ input[type="range"]::-moz-range-thumb {
     </div>
   </div>
 
-</div>
+</div><!-- end .app-container -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     DEPENDENCIES (load order matters)
+     1. Chart.js          — core charting library
+     2. annotation plugin — vertical lines & box overlays on chart
+     3. Hammer.js         — touch gesture support (required by zoom)
+     4. zoom plugin       — scroll/pinch/drag zoom & pan on chart
+     5. app.js            — all application logic (must be last)
+
+     Download each file and place it in the same folder as this
+     index.html. See README.md for the exact download URLs.
+     ═══════════════════════════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
-/* ─── State ─────────────────────────────────────────────────────── */
+/*
+ * app.js — Multi-Portfolio Compound Interest Calculator
+ * ──────────────────────────────────────────────────────
+ * Table of contents
+ *   1.  Global state
+ *   2.  Currency helpers
+ *   3.  Currency toggle
+ *   4.  Tab switching
+ *   5.  Portfolio computation  ← core maths lives here
+ *   6.  Chart
+ *   6a.   Dataset builders (active line, tail, total)
+ *   6b.   Legend
+ *   6c.   Annotations (spend markers, pause boxes, withdrawal boxes)
+ *   6d.   Chart.js instance + zoom/pan plugin config
+ *   6e.   Zoom helpers (show/reset zoom, set axis mode, shading toggles)
+ *   7.  Summary row
+ *   8.  Inline edit (click-to-type on slider values)
+ *   9.  Portfolio card rendering
+ *  10.  Spend events (render list, add, save, remove)
+ *  11.  Transfers (render list, add, remove)
+ *  12.  Pause deposits (parse ranges, render list, add, remove)
+ *  13.  Withdrawals (render list, add, remove)
+ *  14.  Portfolio CRUD (add, remove, rename, collapse, update)
+ *  15.  CSV import
+ *  16.  CSV export
+ *  17.  Full re-render
+ *  18.  Init (seed two default portfolios)
+ */
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   1. GLOBAL STATE
+   All mutable application state lives here as module-level lets.
+   Data shapes:
+     portfolio  — { id, name, color, principal, annual, rate,
+                    inflation, years, startYear, inflateDeposits, collapsed }
+     spendEvent — { year, label, amounts: { [pfId]: number } }
+     transfer   — { id, year, from, to, amount, label }
+     pausePeriod— { id, pfId, years: Set<number>, label, raw }
+     withdrawal — { id, pfId, startYear, endYear, baseAmount,
+                    inflationRate, inflateWithdrawal, label }
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Colour palette cycled when new portfolios are created. */
 const PALETTE = ['#185FA5','#1D9E75','#7F77DD','#D85A30','#BA7517','#D4537E','#639922','#0F6E56'];
 
-let portfolios   = [];
-let spendEvents  = [];
-let transfers    = [];
-let pausePeriods = [];   // { id, pfId, years: Set<number>, label, raw }
-let withdrawals  = [];   // { id, pfId, startYear, endYear, baseAmount, inflationRate, inflateWithdrawal, label }
-let pfCounter    = 0;
-let trCounter    = 0;
-let paCounter    = 0;
-let wdCounter    = 0;
-let chart        = null;
-let currency     = 'INR';
-let zoomMode     = 'x';   // 'x' | 'y' | 'xy'
-let _importing   = false; // suppresses renderAll during batch import
-let showPauseHighlight      = true; // toggles pause shading on chart
-let showWithdrawalHighlight = true; // toggles withdrawal shading on chart
+let portfolios   = [];   // Array<portfolio>
+let spendEvents  = [];   // Array<spendEvent>  — one-off withdrawals
+let transfers    = [];   // Array<transfer>    — moves between portfolios
+let pausePeriods = [];   // Array<pausePeriod> — years with deposit skipped
+let withdrawals  = [];   // Array<withdrawal>  — recurring annual withdrawals
 
-/* ─── Currency helpers ──────────────────────────────────────────── */
+/** Auto-increment counters used as stable integer IDs. */
+let pfCounter = 0;
+let trCounter = 0;
+let paCounter = 0;
+let wdCounter = 0;
+
+/** The live Chart.js instance. Destroyed and recreated on every updateChart(). */
+let chart = null;
+
+/** 'INR' or 'OTHER'. Controls which display-currency functions are used. */
+let currency = 'INR';
+
+/**
+ * Current zoom axis mode for the chart plugin.
+ * 'x' | 'y' | 'xy' — which axis responds to scroll/pinch/drag.
+ */
+let zoomMode = 'x';
+
+/**
+ * Import lock. Set true at the start of _applyImportedRows() so that
+ * every addPortfolio() call during batch import is a no-op for renderAll().
+ * Set false again just before the single final renderAll() at the end.
+ */
+let _importing = false;
+
+/** Whether the pause-period shading boxes are drawn on the chart. */
+let showPauseHighlight = true;
+
+/** Whether the withdrawal-period shading boxes are drawn on the chart. */
+let showWithdrawalHighlight = true;
+
+/**
+ * Calendar year that corresponds to global year 0 ("Now").
+ * Only used for X-axis label display — all computation uses global years unchanged.
+ */
+let baseYear    = new Date().getFullYear();
+
+/**
+ * When true, X-axis labels show actual calendar years (baseYear + globalYear).
+ * When false, labels show "Now", "Yr 1", "Yr 2", …
+ */
+let useBaseYear = false;
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   2. CURRENCY HELPERS
+   All monetary values are stored internally in Indian Rupees (₹).
+   getRate() and getSymbol() read the current display-currency settings
+   so that fmt() / fmtShort() always output in the user's chosen unit.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Returns the active currency symbol (₹ or whatever the user typed). */
 function getSymbol() {
   if (currency === 'INR') return '₹';
   return (document.getElementById('conv-sym')?.value || '$').trim();
 }
+
+/**
+ * Returns the active conversion rate (rupees × rate = display currency).
+ * Always 1 for INR.
+ */
 function getRate() {
   if (currency === 'INR') return 1;
   return parseFloat(document.getElementById('conv-rate')?.value) || 1;
 }
+
+/**
+ * Format a rupee value for display in the current currency.
+ * Uses Indian short suffixes (Cr / L) or plain comma-separated numbers.
+ * @param {number} v  Raw value in rupees.
+ */
 function fmt(v) {
   const c = v * getRate(), s = getSymbol();
   if (Math.abs(c) >= 1e7) return s + (c / 1e7).toFixed(2) + 'Cr';
@@ -664,6 +1185,11 @@ function fmt(v) {
   if (Math.abs(c) >= 1000) return s + Math.round(c).toLocaleString();
   return s + Math.round(c);
 }
+
+/**
+ * Compact format for chart axis labels (B / M / Cr / L / k).
+ * @param {number} v  Raw value in rupees.
+ */
 function fmtShort(v) {
   const c = v * getRate(), s = getSymbol();
   if (Math.abs(c) >= 1e9) return s + (c / 1e9).toFixed(1) + 'B';
@@ -674,91 +1200,189 @@ function fmtShort(v) {
   return s + Math.round(c);
 }
 
-/* ─── Currency toggle ───────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   3. CURRENCY TOGGLE
+   Switches between INR baseline and a user-supplied conversion.
+   Shows/hides the custom conversion inputs and re-renders everything.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Switch the display currency.
+ * @param {'INR'|'OTHER'} cur
+ */
 function setCurrency(cur) {
   currency = cur;
-  document.getElementById('cur-inr').className   = 'cur-btn' + (cur === 'INR' ? ' active' : '');
-  document.getElementById('cur-other').className  = 'cur-btn' + (cur !== 'INR' ? ' active' : '');
+  document.getElementById('cur-inr').className   = 'cur-btn' + (cur === 'INR'  ? ' active' : '');
+  document.getElementById('cur-other').className = 'cur-btn' + (cur !== 'INR' ? ' active' : '');
   document.getElementById('conv-wrap').style.display = cur !== 'INR' ? 'flex' : 'none';
   renderAll();
 }
 
-/* ─── Tab switching ─────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   4. TAB SWITCHING
+   Shows the selected panel and hides the other four.
+   Also refreshes dropdown selects that depend on the current portfolio
+   list whenever their tab becomes visible.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Switch the visible tab panel.
+ * @param {'portfolios'|'spends'|'transfers'|'pauses'|'withdrawals'} tab
+ */
 function switchTab(tab) {
   ['portfolios', 'spends', 'transfers', 'pauses', 'withdrawals'].forEach(t => {
     document.getElementById('panel-' + t).style.display = t === tab ? '' : 'none';
-    document.getElementById('tab-' + t).className = 'tab-btn' + (t === tab ? ' active' : '');
+    document.getElementById('tab-'   + t).className     = 'tab-btn' + (t === tab ? ' active' : '');
   });
+  // Populate dropdowns on demand so they always reflect the current portfolio list
   if (tab === 'transfers')  refreshTransferSelects();
   if (tab === 'pauses')     refreshPauseSelect();
   if (tab === 'withdrawals') refreshWithdrawalSelect();
 }
 
-/* ─── Portfolio computation ─────────────────────────────────────── */
-/**
- * Computes year-by-year balances for a portfolio over `maxYear` years.
- * After pf.years the portfolio is "closed" — balance held constant,
- * no more compounding or deposits, but transfers and spends still apply.
- */
+
+/* ═══════════════════════════════════════════════════════════════════
+   5. PORTFOLIO COMPUTATION  ← CORE MATHS
+   computePortfolio() is the single source of truth for every balance
+   value shown on the chart, in summary cards, and in the CSV export.
+
+   GLOBAL vs LOCAL YEARS
+   ─────────────────────
+   All events (spends, transfers, pauses, withdrawals) are stored with
+   GLOBAL year numbers that match the shared X axis on the chart.
+   Year 0 = "Now". Year 5 = five years from now, regardless of when a
+   particular portfolio started.
+
+   A portfolio's LOCAL year is  g − startYear  (1-indexed, used only
+   for the inflation scaling of annual deposits and withdrawals).
+
+   LIFECYCLE OF A PORTFOLIO
+   ─────────────────────────
+   Active (g ≤ startYear + years):
+     • balance compounds at the interest rate each year
+     • annual deposit added (unless that global year is paused)
+     • spends deducted, transfers applied, continuous withdrawals deducted
+
+   Closed (g > startYear + years):
+     • no more compounding or deposits — balance is held constant
+     • transfers and continuous withdrawals still apply (e.g. post-
+       retirement drawdown continues after the accumulation phase ends)
+
+   @param {Object}  pf       Portfolio object.
+   @param {number}  maxYear  Last global year to compute (inclusive).
+   @returns {{ balances, totalDeposited, final, interest }}
+   ═══════════════════════════════════════════════════════════════════ */
 function computePortfolio(pf, maxYear) {
-  const r      = pf.rate      / 100;
-  const infR   = pf.inflation / 100;
-  const start  = pf.startYear || 0;
-  const limit  = maxYear !== undefined ? maxYear : start + pf.years;
+  const r    = pf.rate      / 100;   // annual return rate as a decimal
+  const infR = pf.inflation / 100;   // inflation rate as a decimal
+  const start = pf.startYear || 0;
+  const limit = maxYear !== undefined ? maxYear : start + pf.years;
 
-  // All events use GLOBAL years on the shared timeline.
+  // ── Pre-build lookup tables keyed by global year ─────────────────
+  // These avoid scanning full arrays inside the hot loop below.
 
-  // Spend withdrawals keyed by GLOBAL year
+  // spendMap[g]    — total one-off withdrawal from this portfolio in global year g
   const spendMap = {};
   spendEvents.forEach(ev => {
     const a = ev.amounts[pf.id] || 0;
-    if (a > 0 && ev.year > 0) spendMap[ev.year] = (spendMap[ev.year] || 0) + a;
+    if (a > 0 && ev.year > 0)
+      spendMap[ev.year] = (spendMap[ev.year] || 0) + a;
   });
 
-  // Transfer flows keyed by GLOBAL year
+  // transferMap[g] — net transfer flow (positive = inflow, negative = outflow)
   const transferMap = {};
   transfers.forEach(tr => {
     if (tr.from === pf.id) transferMap[tr.year] = (transferMap[tr.year] || 0) - tr.amount;
     if (tr.to   === pf.id) transferMap[tr.year] = (transferMap[tr.year] || 0) + tr.amount;
   });
 
-  // Paused global years — deposit skipped when g is in this set
-  const pausedGlobalYears = new Set();
-  pausePeriods.forEach(pa => {
-    if (pa.pfId !== pf.id) return;
-    // Normalise: pa.years may be a Set or a plain Array depending on how it was created
-    const yrs = pa.years instanceof Set ? pa.years : new Set(Array.isArray(pa.years) ? pa.years : []);
-    yrs.forEach(y => pausedGlobalYears.add(y));
+  // Maturity inflows: other portfolios whose maturityAction is 'transfer' pointing
+  // at this portfolio dump their entire final balance here at their close year.
+  //
+  // IMPORTANT: we must compute the source's final balance *before* the maturity
+  // zeroing step, so we temporarily override maturityAction to 'hold' for that
+  // recursive call. This avoids getting back 0 (which is what the source shows
+  // after zeroing itself out).
+  portfolios.forEach(src => {
+    if (src.id === pf.id) return;
+    if (src.maturityAction !== 'transfer' || src.maturityTarget !== pf.id) return;
+    const srcCloseYear = (src.startYear || 0) + src.years;
+    if (srcCloseYear > limit) return;
+
+    // Temporarily treat source as 'hold' to get the true pre-transfer balance
+    const origAction = src.maturityAction;
+    src.maturityAction = 'hold';
+    const srcResult = computePortfolio(src, srcCloseYear);
+    src.maturityAction = origAction;
+
+    const srcFinal = srcResult.balances[srcCloseYear] ?? 0;
+    if (srcFinal > 0) {
+      transferMap[srcCloseYear] = (transferMap[srcCloseYear] || 0) + srcFinal;
+    }
   });
 
-  // Continuous withdrawal map keyed by GLOBAL year
-  // Each active withdrawal contributes its inflation-adjusted amount for each year in [startYear..endYear]
+  // Maturity action: if this portfolio is set to transfer its balance to another
+  // portfolio at end-of-life, we record the close year so the loop can zero it out.
+  const maturityYear   = start + pf.years;
+  const willTransfer   = pf.maturityAction === 'transfer' && pf.maturityTarget !== null
+                         && pf.maturityTarget !== pf.id;
+
+  // pausedGlobalYears — Set of global years where this portfolio's deposit is skipped.
+  // pa.years may be a Set (created normally) or a plain Array (after CSV import),
+  // so we normalise defensively.
+  // For open-ended pauses (openEnded: true), any year >= openEndedFrom is paused.
+  const pausedGlobalYears = new Set();
+  let openEndedPauseFrom = Infinity;  // lowest open-ended-from year for this portfolio
+  pausePeriods.forEach(pa => {
+    if (pa.pfId !== pf.id) return;
+    const yrs = pa.years instanceof Set
+      ? pa.years
+      : new Set(Array.isArray(pa.years) ? pa.years : []);
+    yrs.forEach(y => pausedGlobalYears.add(y));
+    if (pa.openEnded && pa.openEndedFrom !== null) {
+      openEndedPauseFrom = Math.min(openEndedPauseFrom, pa.openEndedFrom);
+    }
+  });
+
+  /** Returns true if the deposit should be skipped in global year g. */
+  const isDepositPaused = g =>
+    pausedGlobalYears.has(g) || g >= openEndedPauseFrom;
+
+  // withdrawalMap[g] — total inflation-adjusted withdrawal amount in global year g.
+  // Each withdrawal plan runs from startYear to endYear inclusive, compounding the
+  // base amount by its own inflation rate each year (0-indexed: first year is base).
   const withdrawalMap = {};
   withdrawals.forEach(wd => {
     if (wd.pfId !== pf.id) return;
     const wdInfR = (wd.inflateWithdrawal ? (wd.inflationRate || 0) : 0) / 100;
     for (let g = wd.startYear; g <= wd.endYear && g <= limit; g++) {
-      const yearsIn = g - wd.startYear;   // 0-indexed: first year = no inflation yet
+      const yearsIn = g - wd.startYear;  // 0 on first year → base amount unchanged
       const amount  = wd.baseAmount * Math.pow(1 + wdInfR, yearsIn);
       withdrawalMap[g] = (withdrawalMap[g] || 0) + amount;
     }
   });
 
+  // ── Year-by-year simulation ──────────────────────────────────────
   const balances = new Array(limit + 1).fill(null);
 
-  let balance = pf.principal;
+  let balance        = pf.principal;
   let totalDeposited = pf.principal;
-  balances[start] = Math.round(balance);
+  balances[start]    = Math.round(balance);   // balance at year 0 of this portfolio
 
   for (let g = start + 1; g <= limit; g++) {
-    const localY = g - start;   // 1-indexed local portfolio year (for inflation calc only)
+    const localY = g - start;   // 1-indexed local year; used only for inflation scaling
 
     if (localY <= pf.years) {
-      // Active: compound always
+      // ── ACTIVE phase ───────────────────────────────────────────
+      // Step 1: compound the balance
       balance *= (1 + r);
 
-      // Deposit unless this global year is paused
-      if (!pausedGlobalYears.has(g)) {
+      // Step 2: add annual deposit unless this global year is paused
+      if (!isDepositPaused(g)) {
+        // If inflateDeposits is on, each successive year's deposit grows by the
+        // portfolio's inflation rate to preserve its real purchasing-power value.
         const deposit = pf.inflateDeposits
           ? pf.annual * Math.pow(1 + infR, localY - 1)
           : pf.annual;
@@ -766,13 +1390,21 @@ function computePortfolio(pf, maxYear) {
         totalDeposited += deposit;
       }
 
-      // Spends and transfers at this global year
-      balance = Math.max(0, balance - (spendMap[g]       || 0));
-      balance = Math.max(0, balance + (transferMap[g]    || 0));
-      // Continuous withdrawals
-      balance = Math.max(0, balance - (withdrawalMap[g]  || 0));
+      // Step 3: apply one-off spends (deduct), then transfers (net flow)
+      balance = Math.max(0, balance - (spendMap[g]    || 0));
+      balance = Math.max(0, balance + (transferMap[g] || 0));
+
+      // Step 4: deduct continuous withdrawal for this year (if any)
+      balance = Math.max(0, balance - (withdrawalMap[g] || 0));
+
+      // Step 5: if this is the close year and maturityAction is 'transfer',
+      // zero out this portfolio (the full balance flows to the target).
+      if (willTransfer && localY === pf.years) balance = 0;
+
     } else {
-      // Closed: no compounding, no deposits — transfers and withdrawals still apply
+      // ── CLOSED phase ───────────────────────────────────────────
+      // No compounding, no deposits. Transfers and withdrawals still apply.
+      // If maturityAction is 'transfer', balance was already zeroed at close year.
       balance = Math.max(0, balance + (transferMap[g]   || 0));
       balance = Math.max(0, balance - (withdrawalMap[g] || 0));
     }
@@ -780,39 +1412,67 @@ function computePortfolio(pf, maxYear) {
     balances[g] = Math.round(balance);
   }
 
+  // Final balance is taken at the portfolio's close year, not necessarily maxYear
   const finalGlobal = Math.min(start + pf.years, limit);
   const finalVal    = balances[finalGlobal] ?? 0;
 
   return {
-    balances,
-    totalDeposited,
+    balances,           // Array<number|null> — null before portfolio start
+    totalDeposited,     // cumulative deposits including principal
     final:    finalVal,
     interest: Math.max(0, finalVal - totalDeposited)
   };
 }
 
-/* ─── Chart ─────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   6. CHART
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Convert a global year index to its X-axis label string.
+ * When useBaseYear is on:  0 → "2025",  5 → "2030", etc.
+ * When useBaseYear is off: 0 → "Now",   5 → "Yr 5"
+ *
+ * This is the ONLY place in the codebase that knows about the calendar
+ * year display. All annotations and dataset data still reference the
+ * same Chart.js label strings via this function, so everything stays
+ * consistent when the toggle is switched.
+ *
+ * @param {number} g  Global year index (0 = Now).
+ * @returns {string}
+ */
+function getXLabel(g) {
+  if (useBaseYear) return String(baseYear + g);
+  return g === 0 ? 'Now' : 'Yr ' + g;
+}
 function updateChart() {
+  // Nothing to draw — clear the canvas and bail out
   if (!portfolios.length) {
     if (chart) { chart.destroy(); chart = null; }
     return;
   }
 
+  // Global timeline spans from year 0 to the latest portfolio close year
   const maxY      = Math.max(...portfolios.map(p => (p.startYear || 0) + p.years));
-  const labels    = Array.from({ length: maxY + 1 }, (_, i) => i === 0 ? 'Now' : 'Yr ' + i);
+  const labels    = Array.from({ length: maxY + 1 }, (_, i) => getXLabel(i));
   const showTotal = document.getElementById('total-tog').checked;
-  const allBals   = portfolios.map(pf => computePortfolio(pf, maxY).balances);
 
+  // Pre-compute all portfolio balance arrays once (reused in datasets + total line)
+  const allBals = portfolios.map(pf => computePortfolio(pf, maxY).balances);
+
+  // ── 6a. DATASETS ─────────────────────────────────────────────────
   const datasets = [];
 
   portfolios.forEach((pf, pi) => {
     const start   = pf.startYear || 0;
     const endGlob = start + pf.years;
 
+    // Solid line: visible only during the portfolio's active years
     datasets.push({
       label:            pf.name,
       borderColor:      pf.color,
-      backgroundColor:  pf.color + '18',
+      backgroundColor:  pf.color + '18',   // hex + 2-digit alpha ≈ 10% opacity
       data:             allBals[pi].map((v, i) => (i >= start && i <= endGlob) ? v : null),
       fill:             false,
       tension:          0.3,
@@ -822,6 +1482,9 @@ function updateChart() {
       spanGaps:         false
     });
 
+    // Dashed tail: flat line after the portfolio closes — shows the held balance.
+    // Only rendered if the portfolio ends before the global timeline ends.
+    // Named with '_tail' suffix so the tooltip filter can hide it.
     if (endGlob < maxY) {
       datasets.push({
         label:            pf.name + '_tail',
@@ -839,6 +1502,8 @@ function updateChart() {
     }
   });
 
+  // Grey dashed total line: sum of all portfolio balances at each year.
+  // Null for any year where no portfolio has started yet.
   if (showTotal && portfolios.length > 1) {
     datasets.push({
       label:            'Total',
@@ -859,31 +1524,42 @@ function updateChart() {
     });
   }
 
-  // ── Legend ───────────────────────────────────────────────────────
+  // ── 6b. LEGEND ───────────────────────────────────────────────────
+  // Rendered as HTML in the #legend div (not Chart.js's built-in legend,
+  // which can't show custom markers like the spend/pause/withdrawal icons).
   document.getElementById('legend').innerHTML =
+    // One coloured square per portfolio
     portfolios.map(pf =>
       `<span class="legend-item">
         <span class="legend-dot" style="background:${pf.color};"></span>${pf.name}
       </span>`
     ).join('') +
+
+    // Dashed grey line icon for the total
     (showTotal && portfolios.length > 1
       ? `<span class="legend-item">
            <span class="legend-dash"></span>
            <span style="color:var(--color-text-secondary);">Total</span>
          </span>`
       : '') +
+
+    // Orange vertical bar icon for spend events
     (spendEvents.length
       ? `<span class="legend-item">
            <span class="legend-spend-marker"></span>
            <span style="color:var(--color-text-secondary);">Spend</span>
          </span>`
       : '') +
+
+    // Dashed box icon for pauses (only when shading is on)
     (pausePeriods.length && showPauseHighlight
       ? `<span class="legend-item">
            <span class="legend-pause-marker"></span>
            <span style="color:var(--color-text-secondary);">Paused</span>
          </span>`
       : '') +
+
+    // Green dashed box icon for withdrawals (only when shading is on)
     (withdrawals.length && showWithdrawalHighlight
       ? `<span class="legend-item">
            <span class="legend-withdrawal-marker"></span>
@@ -891,10 +1567,14 @@ function updateChart() {
          </span>`
       : '');
 
-  // ── Annotations ──────────────────────────────────────────────────
+  // ── 6c. ANNOTATIONS ──────────────────────────────────────────────
+  // chartjs-plugin-annotation overlays shapes on top of the chart canvas.
+  // All annotations are keyed by unique string IDs.
   const annotations = {};
 
-  // Spend markers — vertical dashed orange lines
+  // Spend event markers — thin vertical dashed orange lines.
+  // Multiple spend events at the same global year are merged into one marker
+  // with a comma-separated label.
   const spendByYear = {};
   spendEvents.forEach(ev => {
     if (!spendByYear[ev.year]) spendByYear[ev.year] = [];
@@ -906,14 +1586,14 @@ function updateChart() {
     annotations['spend_' + y] = {
       type:        'line',
       scaleID:     'x',
-      value:       y === 0 ? 'Now' : 'Yr ' + y,
+      value:       getXLabel(y),
       borderColor: '#D85A30',
       borderWidth: 1.5,
       borderDash:  [4, 3],
       label: {
         display:         true,
         content:         lbls.join(', '),
-        position:        'start',
+        position:        'start',   // top of chart
         yAdjust:         -6,
         backgroundColor: 'rgba(216,90,48,0.12)',
         color:           '#D85A30',
@@ -924,45 +1604,61 @@ function updateChart() {
     };
   });
 
-  // Pause highlight boxes — only when toggle is on
+  // Pause highlight boxes — shown only when the "Pause shading" toggle is active.
   if (showPauseHighlight && pausePeriods.length) {
     let boxIdx = 0;
     pausePeriods.forEach(pa => {
       const pf = portfolios.find(p => p.id === pa.pfId);
       if (!pf) return;
 
+      // Normalise pa.years: may be Set (normal) or Array (after import)
       const yearsArr = (pa.years instanceof Set)
         ? [...pa.years]
         : Array.isArray(pa.years) ? [...pa.years] : [];
-      if (!yearsArr.length) return;
 
+      // Hex → rgba helper
       const toRgba = (h, a) => {
         const n = parseInt(h.replace('#', ''), 16);
         return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
       };
 
+      // Build contiguous runs from explicit years, then append an open-ended run if needed
       const sorted = yearsArr.map(Number).sort((a, b) => a - b);
       const runs = [];
-      let s = sorted[0], e = sorted[0];
-      for (let i = 1; i < sorted.length; i++) {
-        if (sorted[i] === e + 1) { e = sorted[i]; }
-        else { runs.push([s, e]); s = e = sorted[i]; }
+      if (sorted.length) {
+        let s = sorted[0], e = sorted[0];
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i] === e + 1) { e = sorted[i]; }
+          else { runs.push([s, e]); s = e = sorted[i]; }
+        }
+        runs.push([s, e]);
       }
-      runs.push([s, e]);
+      // Open-ended pause extends from openEndedFrom to the chart's right edge
+      if (pa.openEnded && pa.openEndedFrom !== null && pa.openEndedFrom <= maxY) {
+        const lastRun = runs[runs.length - 1];
+        if (lastRun && lastRun[1] + 1 === pa.openEndedFrom) {
+          lastRun[1] = maxY;   // merge if contiguous with the last explicit run
+        } else {
+          runs.push([pa.openEndedFrom, maxY]);
+        }
+      }
+
+      if (!runs.length) return;
 
       runs.forEach(([from, to]) => {
         if (from > maxY) return;
         annotations['pause_' + pa.id + '_' + boxIdx++] = {
           type:            'box',
-          xMin:            from === 0 ? 'Now' : 'Yr ' + from,
-          xMax:            'Yr ' + Math.min(to + 1, maxY),
+          xMin:            getXLabel(from),
+          xMax:            getXLabel(Math.min(to + 1, maxY)),
           backgroundColor: toRgba(pf.color, 0.10),
           borderColor:     toRgba(pf.color, 0.35),
           borderWidth:     1,
           borderDash:      [3, 3],
           label: {
             display:         true,
-            content:         [pf.name, 'paused'],
+            // Show ∞ in the label when this run reaches the end of the chart
+            content:         (pa.openEnded && to >= maxY) ? [pf.name, 'paused ∞'] : [pf.name, 'paused'],
             position:        { x: 'center', y: 'start' },
             yAdjust:         6,
             backgroundColor: 'transparent',
@@ -975,7 +1671,10 @@ function updateChart() {
     });
   }
 
-  // Withdrawal highlight boxes — only when toggle is on
+  // Withdrawal highlight boxes — shown only when "Withdrawal shading" toggle is active.
+  // Each withdrawal spans startYear..endYear continuously (no gaps needed).
+  // The label shows "base → final/yr" when inflation-adjusted, or just "base/yr" if fixed.
+  // Labels are bottom-anchored to visually distinguish from pause boxes (top-anchored).
   if (showWithdrawalHighlight && withdrawals.length) {
     const toRgba = (h, a) => {
       const n = parseInt(h.replace('#', ''), 16);
@@ -985,29 +1684,30 @@ function updateChart() {
     withdrawals.forEach((wd, idx) => {
       const pf = portfolios.find(p => p.id === wd.pfId);
       if (!pf) return;
+
       const from = Math.max(0, wd.startYear);
       const to   = Math.min(wd.endYear, maxY);
       if (from > maxY) return;
 
-      // Show the base and (if inflated) the final year amount in the label
-      const wdInfR = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
-      const lastAmt = wd.baseAmount * Math.pow(1 + wdInfR, wd.endYear - wd.startYear);
+      // Build the two-line label: portfolio name + amount range
+      const wdInfR   = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
+      const lastAmt  = wd.baseAmount * Math.pow(1 + wdInfR, wd.endYear - wd.startYear);
       const amtLabel = wd.inflateWithdrawal && lastAmt !== wd.baseAmount
-        ? `${fmt(wd.baseAmount)}→${fmt(lastAmt)}/yr`
-        : `${fmt(wd.baseAmount)}/yr`;
+        ? `${fmt(wd.baseAmount)}→${fmt(lastAmt)}/yr`   // inflation-adjusted: show range
+        : `${fmt(wd.baseAmount)}/yr`;                   // fixed: show single value
 
       annotations['wd_' + wd.id + '_' + idx] = {
         type:            'box',
-        xMin:            from === 0 ? 'Now' : 'Yr ' + from,
-        xMax:            'Yr ' + Math.min(to + 1, maxY),
-        backgroundColor: toRgba(pf.color, 0.07),
-        borderColor:     toRgba(pf.color, 0.5),
+        xMin:            getXLabel(from),
+        xMax:            getXLabel(Math.min(to + 1, maxY)),
+        backgroundColor: toRgba(pf.color, 0.07),   // slightly lighter than pause (7%)
+        borderColor:     toRgba(pf.color, 0.50),   // more opaque border
         borderWidth:     1.5,
-        borderDash:      [6, 3],
+        borderDash:      [6, 3],                    // longer dashes than pause to distinguish
         label: {
           display:         true,
           content:         [pf.name, amtLabel],
-          position:        { x: 'center', y: 'end' },
+          position:        { x: 'center', y: 'end' },   // bottom of box (vs top for pause)
           yAdjust:         -6,
           backgroundColor: 'transparent',
           color:           toRgba(pf.color, 0.75),
@@ -1018,27 +1718,40 @@ function updateChart() {
     });
   }
 
+  // ── 6d. CHART.JS INSTANCE ────────────────────────────────────────
+  // Hide the reset-zoom button and destroy the old chart before
+  // creating a fresh one. This avoids stale dataset/plugin state.
   const zoomBtn = document.getElementById('reset-zoom-btn');
   if (zoomBtn) zoomBtn.style.display = 'none';
   if (chart) { chart.destroy(); chart = null; }
+
   chart = new Chart(document.getElementById('mainChart'), {
     type: 'line',
     data: { labels, datasets },
     options: {
       responsive:          true,
       maintainAspectRatio: false,
+
       plugins: {
-        legend:  { display: false },
+        // Hide Chart.js's built-in legend — we render our own HTML legend above
+        legend: { display: false },
+
+        // Tooltip: shown on hover
         tooltip: {
+          // Don't show tooltip entries for tail datasets
           filter: item => !item.dataset.label.endsWith('_tail'),
           callbacks: {
+            // Main value line: "Portfolio Name: ₹12.34Cr"
             label: ctx => ctx.dataset.label + ': ' + fmt(ctx.raw),
+
+            // Extra lines appended below the main value lines:
+            // spends, paused portfolios, and active withdrawals at this year
             afterBody: ctx => {
               const yr = ctx[0]?.dataIndex;
               if (yr === undefined) return [];
               const lines = [];
 
-              // Spend events at this year
+              // Section: spend events at this year
               const evs = spendEvents.filter(ev => ev.year === yr);
               if (evs.length) {
                 lines.push('', '— Spends —');
@@ -1046,15 +1759,18 @@ function updateChart() {
                   const parts = portfolios
                     .filter(pf => ev.amounts[pf.id] > 0)
                     .map(pf => `${pf.name}: −${fmt(ev.amounts[pf.id])}`);
-                  lines.push(`${ev.label}` + (parts.length ? ': ' + parts.join(', ') : ''));
+                  lines.push(ev.label + (parts.length ? ': ' + parts.join(', ') : ''));
                 });
               }
 
-              // Paused portfolios at this year
+              // Section: portfolios whose deposit is paused this year
               const pausedNames = pausePeriods
                 .filter(pa => {
-                  const yrs = pa.years instanceof Set ? pa.years : new Set(Array.isArray(pa.years) ? pa.years : []);
-                  return yrs.has(yr);
+                  // Defensive normalisation — pa.years could be Set or Array
+                  const yrs = pa.years instanceof Set
+                    ? pa.years
+                    : new Set(Array.isArray(pa.years) ? pa.years : []);
+                  return yrs.has(yr) || (pa.openEnded && pa.openEndedFrom !== null && yr >= pa.openEndedFrom);
                 })
                 .map(pa => portfolios.find(p => p.id === pa.pfId)?.name)
                 .filter(Boolean);
@@ -1063,7 +1779,7 @@ function updateChart() {
                 pausedNames.forEach(n => lines.push(n));
               }
 
-              // Active withdrawals at this year
+              // Section: active withdrawals this year (with inflation-adjusted amount)
               const activeWds = withdrawals.filter(wd => yr >= wd.startYear && yr <= wd.endYear);
               if (activeWds.length) {
                 lines.push('', '— Withdrawals —');
@@ -1071,7 +1787,7 @@ function updateChart() {
                   const pf = portfolios.find(p => p.id === wd.pfId);
                   if (!pf) return;
                   const wdInfR = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
-                  const amt = wd.baseAmount * Math.pow(1 + wdInfR, yr - wd.startYear);
+                  const amt    = wd.baseAmount * Math.pow(1 + wdInfR, yr - wd.startYear);
                   lines.push(`${pf.name} (${wd.label}): −${fmt(amt)}`);
                 });
               }
@@ -1080,38 +1796,57 @@ function updateChart() {
             }
           }
         },
+
+        // Annotation plugin: spend lines, pause boxes, withdrawal boxes
         annotation: { annotations },
+
+        // Zoom plugin: scroll/pinch/drag interactivity
         zoom: {
           pan: {
-            enabled:    true,
-            mode:       zoomMode === 'y' ? 'y' : zoomMode === 'xy' ? 'xy' : 'x',
-            threshold:  5,
-            onPan:      () => showResetZoom(),
+            enabled:   true,
+            // Pan axis follows the zoom axis mode (dragging Y when in Y mode, etc.)
+            mode:      zoomMode === 'y' ? 'y' : zoomMode === 'xy' ? 'xy' : 'x',
+            threshold: 5,           // minimum pixel drag before pan activates
+            onPan:     () => showResetZoom(),   // reveal the reset button
           },
           zoom: {
-            wheel:   { enabled: true, speed: 0.08 },
-            pinch:   { enabled: true },
-            mode:    zoomMode,
-            onZoom:  () => showResetZoom(),
+            wheel: { enabled: true, speed: 0.08 },  // slow scroll for fine control
+            pinch: { enabled: true },               // two-finger pinch on trackpad/mobile
+            mode:  zoomMode,
+            onZoom: () => showResetZoom(),
           },
           limits: {
-            x: { minRange: 2 }
+            x: { minRange: 2 }  // prevent zooming past a 2-year window
           }
         }
       },
+
       scales: {
-        x: { ticks: { autoSkip: true, maxTicksLimit: 13, color: '#9e958a' }, grid: { display: false } },
-        y: { ticks: { color: '#9e958a', callback: v => fmtShort(v) }, grid: { color: 'rgba(100,88,70,0.08)' } }
+        x: {
+          ticks: { autoSkip: true, maxTicksLimit: 13, color: '#9e958a' },
+          grid:  { display: false }
+        },
+        y: {
+          ticks: { color: '#9e958a', callback: v => fmtShort(v) },
+          grid:  { color: 'rgba(100,88,70,0.08)' }
+        }
       }
     }
   });
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════
+   6e. ZOOM HELPERS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Make the "↺ Reset zoom" button visible (called on any zoom or pan event). */
 function showResetZoom() {
   const btn = document.getElementById('reset-zoom-btn');
   if (btn) btn.style.display = '';
 }
 
+/** Reset chart to full view and hide the reset button. */
 function resetChartZoom() {
   if (chart) {
     chart.resetZoom();
@@ -1120,21 +1855,31 @@ function resetChartZoom() {
   }
 }
 
+/**
+ * Switch which axis is zoomed by scroll/pinch.
+ * Updates the X/Y/XY button states and patches the live chart plugin
+ * options without destroying and recreating the whole chart instance.
+ * @param {'x'|'y'|'xy'} mode
+ */
 function setZoomMode(mode) {
   zoomMode = mode;
-  // Update button active states
   ['x', 'y', 'xy'].forEach(m => {
     const btn = document.getElementById('zm-' + m);
     if (btn) btn.className = 'zoom-mode-btn' + (m === mode ? ' active' : '');
   });
-  // Update the live chart plugin without full rebuild — faster response
+  // Patch the live plugin options so the mode change takes effect immediately
   if (chart) {
     chart.options.plugins.zoom.pan.mode  = mode === 'y' ? 'y' : mode === 'xy' ? 'xy' : 'x';
     chart.options.plugins.zoom.zoom.mode = mode;
-    chart.update('none');
+    chart.update('none');   // 'none' = skip animation
   }
 }
 
+/**
+ * Toggle pause-period shading boxes on/off.
+ * Only calls updateChart() — not a full renderAll() — since only the
+ * chart canvas needs to change.
+ */
 function togglePauseHighlight() {
   showPauseHighlight = !showPauseHighlight;
   const btn = document.getElementById('pause-highlight-btn');
@@ -1142,6 +1887,10 @@ function togglePauseHighlight() {
   updateChart();
 }
 
+/**
+ * Toggle withdrawal-period shading boxes on/off.
+ * Same pattern as togglePauseHighlight().
+ */
 function toggleWithdrawalHighlight() {
   showWithdrawalHighlight = !showWithdrawalHighlight;
   const btn = document.getElementById('wd-highlight-btn');
@@ -1149,7 +1898,38 @@ function toggleWithdrawalHighlight() {
   updateChart();
 }
 
-/* ─── Summary row ───────────────────────────────────────────────── */
+/**
+ * Toggle whether the X axis shows calendar years or relative "Yr N" labels.
+ * Only rebuilds the chart — computation is unaffected.
+ */
+function toggleBaseYear() {
+  useBaseYear = !useBaseYear;
+  const btn   = document.getElementById('base-year-tog-btn');
+  const wrap  = document.getElementById('base-year-input-wrap');
+  if (btn)  btn.className = 'zoom-mode-btn' + (useBaseYear ? ' active' : '');
+  if (wrap) wrap.style.display = useBaseYear ? 'flex' : 'none';
+  updateChart();
+}
+
+/**
+ * Update the base year value from the input field and redraw.
+ * Called on every keystroke in the base-year input.
+ */
+function setBaseYear() {
+  const inp = document.getElementById('base-year-input');
+  const val = parseInt(inp?.value);
+  if (!isNaN(val) && val >= 1900 && val <= 2200) {
+    baseYear = val;
+    updateChart();
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   7. SUMMARY ROW
+   Renders one stat card per portfolio (final balance) plus an optional
+   Total card at the end. Lives in #summary-grid.
+   ═══════════════════════════════════════════════════════════════════ */
 function updateSummary() {
   const el = document.getElementById('summary-grid');
   if (!portfolios.length) { el.innerHTML = ''; return; }
@@ -1173,21 +1953,47 @@ function updateSummary() {
   el.innerHTML = html;
 }
 
-/* ─── Inline edit helpers ───────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   8. INLINE EDIT — click-to-type on slider values
+   Clicking a .pf-row-val span calls startInlineEdit(), which replaces
+   the span with an <input>. Committing (Enter / blur) calls updatePf().
+   Escaping restores the original value without a state change.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Config for each editable portfolio field.
+ *   min / max      — bounds enforced on the inline number input (click-to-type)
+ *   sliderMin / sliderMax — range shown on the range slider (coarser, more practical range)
+ *   step           — slider step (inline input uses the same step)
+ *   isFloat        — parse with parseFloat (true) or parseInt (false)
+ *   rv()           — reads the current value from a portfolio object
+ *
+ * principal / annual have a wide input range (0–20Cr) but a tighter slider
+ * range (0–20L) so the slider stays usable for typical values while
+ * power users can still type a precise figure beyond the slider's max.
+ */
 const FIELD_CONFIG = {
-  principal:      { min: 500,  max: 10000000, step: 500,  isFloat: false, rv: pf => pf.principal      },
-  annual:         { min: 0,    max: 2000000,  step: 1000, isFloat: false, rv: pf => pf.annual         },
-  rate:           { min: 0.5,  max: 25,       step: 0.5,  isFloat: true,  rv: pf => pf.rate           },
-  inflation:      { min: 0,    max: 15,       step: 0.5,  isFloat: true,  rv: pf => pf.inflation      },
-  years:          { min: 1,    max: 50,       step: 1,    isFloat: false, rv: pf => pf.years          },
-  startYear:      { min: 0,    max: 49,       step: 1,    isFloat: false, rv: pf => pf.startYear      },
+  principal: { min: 0,   max: 200000000, sliderMin: 0,   sliderMax: 2000000, step: 500,  isFloat: false, rv: pf => pf.principal  },
+  annual:    { min: 0,   max: 200000000, sliderMin: 0,   sliderMax: 2000000, step: 1000, isFloat: false, rv: pf => pf.annual      },
+  rate:      { min: 0.5, max: 25,        sliderMin: 0.5, sliderMax: 25,      step: 0.5,  isFloat: true,  rv: pf => pf.rate        },
+  inflation: { min: 0,   max: 15,        sliderMin: 0,   sliderMax: 15,      step: 0.5,  isFloat: true,  rv: pf => pf.inflation   },
+  years:     { min: 1,   max: 50,        sliderMin: 1,   sliderMax: 50,      step: 1,    isFloat: false, rv: pf => pf.years       },
+  startYear: { min: 0,   max: 49,        sliderMin: 0,   sliderMax: 49,      step: 1,    isFloat: false, rv: pf => pf.startYear   },
 };
 
+/**
+ * Replace a value label span with a number input for direct editing.
+ * @param {HTMLElement} spanEl  The .pf-row-val span being clicked.
+ * @param {number}      pfId    Portfolio id.
+ * @param {string}      key     The FIELD_CONFIG key being edited.
+ */
 function startInlineEdit(spanEl, pfId, key) {
   const pf  = portfolios.find(p => p.id === pfId);
   if (!pf) return;
   const cfg = FIELD_CONFIG[key];
-  const inp = document.createElement('input');
+
+  const inp     = document.createElement('input');
   inp.type      = 'number';
   inp.className = 'pf-row-val-input';
   inp.value     = cfg.rv(pf);
@@ -1200,40 +2006,53 @@ function startInlineEdit(spanEl, pfId, key) {
 
   function commit() {
     let val = cfg.isFloat ? parseFloat(inp.value) : parseInt(inp.value);
-    if (isNaN(val)) val = cfg.rv(pf);
-    val = Math.min(cfg.max, Math.max(cfg.min, val));
+    if (isNaN(val)) val = cfg.rv(pf);          // revert on bad input
+    val = Math.min(cfg.max, Math.max(cfg.min, val));  // clamp to allowed range
     updatePf(pfId, key, val);
   }
 
   inp.addEventListener('keydown', e => {
     if (e.key === 'Enter')  { e.preventDefault(); commit(); }
-    if (e.key === 'Escape') { updatePf(pfId, key, cfg.rv(pf)); }
+    if (e.key === 'Escape') { updatePf(pfId, key, cfg.rv(pf)); }  // revert
   });
   inp.addEventListener('blur', commit);
 }
 
-/* ─── Portfolio card rendering ──────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   9. PORTFOLIO CARD RENDERING
+   renderPortfolioCard() writes the full innerHTML of a portfolio's
+   .pf-card div (which was created and appended by addPortfolio()).
+   It is called by renderAll() and directly by updatePf() / toggleCollapse()
+   for lightweight updates that don't need a full re-render.
+   ═══════════════════════════════════════════════════════════════════ */
 function renderPortfolioCard(pf) {
   const el = document.getElementById('pf-' + pf.id);
   if (!el) return;
 
   const { totalDeposited, final, interest } = computePortfolio(pf);
 
+  /**
+   * Wrap a displayed value in a clickable span that triggers inline editing.
+   * @param {string} key     FIELD_CONFIG key
+   * @param {string} display Formatted display string
+   */
   function valSpan(key, display) {
     return `<span class="pf-row-val" title="Click to type a value"
       onclick="startInlineEdit(this,${pf.id},'${key}')">${display}</span>`;
   }
 
+  // Sliders grid — empty string when the card is collapsed
   const slidersHTML = pf.collapsed ? '' : `
     <div class="pf-sliders">
       <div class="pf-row">
         <label class="pf-row-label"><span>Initial deposit</span>${valSpan('principal', fmt(pf.principal))}</label>
-        <input type="range" min="500" max="10000000" step="500" value="${pf.principal}"
+        <input type="range" min="0" max="2000000" step="500" value="${Math.min(pf.principal, 2000000)}"
                oninput="updatePf(${pf.id},'principal',+this.value)">
       </div>
       <div class="pf-row">
         <label class="pf-row-label"><span>Annual deposit</span>${valSpan('annual', fmt(pf.annual) + '/yr')}</label>
-        <input type="range" min="0" max="2000000" step="1000" value="${pf.annual}"
+        <input type="range" min="0" max="2000000" step="1000" value="${Math.min(pf.annual, 2000000)}"
                oninput="updatePf(${pf.id},'annual',+this.value)">
       </div>
       <div class="pf-row">
@@ -1264,6 +2083,32 @@ function renderPortfolioCard(pf) {
         </label>
         <span class="muted-label" style="font-size:12px;">Inflate deposits</span>
       </div>
+
+      <div class="maturity-row">
+        <span class="muted-label" style="font-size:12px;white-space:nowrap;">At end of term</span>
+        <div class="maturity-options">
+          <label class="maturity-opt ${pf.maturityAction === 'hold' ? 'active' : ''}">
+            <input type="radio" name="mat-${pf.id}" value="hold"
+                   ${pf.maturityAction === 'hold' ? 'checked' : ''}
+                   onchange="updatePf(${pf.id},'maturityAction','hold')">
+            Keep balance
+          </label>
+          <label class="maturity-opt ${pf.maturityAction === 'transfer' ? 'active' : ''}">
+            <input type="radio" name="mat-${pf.id}" value="transfer"
+                   ${pf.maturityAction === 'transfer' ? 'checked' : ''}
+                   onchange="updatePf(${pf.id},'maturityAction','transfer')">
+            Transfer to
+          </label>
+        </div>
+        ${pf.maturityAction === 'transfer' ? `
+        <select class="sinput maturity-target-select" style="font-size:12px;padding:3px 8px;"
+                onchange="updatePf(${pf.id},'maturityTarget',+this.value)">
+          <option value="" disabled ${!pf.maturityTarget ? 'selected' : ''}>Choose portfolio…</option>
+          ${portfolios.filter(p => p.id !== pf.id).map(p =>
+            `<option value="${p.id}" ${pf.maturityTarget === p.id ? 'selected' : ''}>${p.name}</option>`
+          ).join('')}
+        </select>` : ''}
+      </div>
     </div>`;
 
   el.innerHTML = `
@@ -1281,7 +2126,20 @@ function renderPortfolioCard(pf) {
     ${slidersHTML}`;
 }
 
-/* ─── Spend events ──────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   10. SPEND EVENTS
+   Spend events are one-off withdrawals at a specific global year,
+   with independent amounts per portfolio (some portfolios can be
+   excluded by leaving their amount blank).
+
+   Saved events show:
+     • Coloured pills for portfolios with a set amount
+     • Muted grey pills for portfolios with no amount (so the user
+       can see at a glance which portfolios aren't affected)
+     • A collapsible "Edit amounts" section with all current portfolios
+       (including ones added after the event was created)
+   ═══════════════════════════════════════════════════════════════════ */
 function renderSpendEvents() {
   const el = document.getElementById('spends-list');
   if (!spendEvents.length) {
@@ -1292,7 +2150,7 @@ function renderSpendEvents() {
   el.innerHTML = spendEvents.map((ev, i) => {
     const sym = getSymbol();
 
-    // Pills: show all portfolios that have a non-zero amount
+    // Portfolios with a set amount — shown as coloured pills
     const activePills = portfolios
       .filter(pf => ev.amounts[pf.id] > 0)
       .map(pf => `
@@ -1303,7 +2161,7 @@ function renderSpendEvents() {
         </div>`)
       .join('');
 
-    // Unset portfolios shown as muted pills
+    // Portfolios with no amount — shown as muted pills so the user sees what's missing
     const unsetPills = portfolios
       .filter(pf => !(ev.amounts[pf.id] > 0))
       .map(pf => `
@@ -1314,7 +2172,7 @@ function renderSpendEvents() {
         </div>`)
       .join('');
 
-    // Editable amount rows for all portfolios
+    // Editable amount row for every current portfolio (inside the collapsible section)
     const amountInputs = portfolios.map(pf => `
       <div class="pf-amount-row" style="margin-bottom:5px;">
         <div class="pf-dot" style="background:${pf.color};"></div>
@@ -1328,11 +2186,12 @@ function renderSpendEvents() {
     return `<div class="event-card">
       <div class="event-header">
         <div style="flex:1;min-width:0;">
+          <!-- Inline-editable label -->
           <input class="event-title-input sinput"
-                 value="${ev.label}"
-                 id="se-lbl-${i}"
+                 value="${ev.label}" id="se-lbl-${i}"
                  style="font-weight:500;font-size:13px;width:100%;margin-bottom:2px;"
                  placeholder="Label" />
+          <!-- Inline-editable year -->
           <div style="display:flex;align-items:center;gap:6px;">
             <span style="font-size:11px;color:var(--color-text-secondary);">Year</span>
             <input type="number" id="se-yr-${i}" class="sinput"
@@ -1343,10 +2202,12 @@ function renderSpendEvents() {
         <button class="icon-btn" onclick="removeSpendEvent(${i})">×</button>
       </div>
 
+      <!-- Summary pills row -->
       <div class="pills-row" style="margin-bottom:8px;">
         ${activePills || ''}${unsetPills}
       </div>
 
+      <!-- Collapsible edit section: rotates arrow on open/close -->
       <details style="margin-top:4px;">
         <summary style="font-size:12px;color:var(--color-text-secondary);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:4px;">
           <span id="se-arrow-${i}" style="font-size:10px;transition:transform .15s;">▶</span>
@@ -1362,7 +2223,7 @@ function renderSpendEvents() {
     </div>`;
   }).join('');
 
-  // Rotate arrow on open/close
+  // Wire up the arrow rotation for each <details> element
   spendEvents.forEach((_, i) => {
     const det = document.querySelector(`#spends-list details:nth-child(${i + 1})`);
     if (!det) return;
@@ -1373,19 +2234,24 @@ function renderSpendEvents() {
   });
 }
 
+/**
+ * Persist edits made inside a spend event's collapsible section.
+ * Reads the inline year/label inputs and all per-portfolio amount inputs,
+ * then re-sorts and re-renders.
+ * @param {number} i  Index into spendEvents[].
+ */
 function saveSpendEvent(i) {
-  const ev  = spendEvents[i];
+  const ev = spendEvents[i];
   if (!ev) return;
 
-  // Read updated year and label
-  const yrEl  = document.getElementById('se-yr-'  + i);
-  const lblEl = document.getElementById('se-lbl-' + i);
-  const yr    = parseInt(yrEl?.value);
-  const lbl   = lblEl?.value.trim() || ev.label;
+  const yr  = parseInt(document.getElementById('se-yr-'  + i)?.value);
+  const lbl = document.getElementById('se-lbl-' + i)?.value.trim() || ev.label;
+
   if (!isNaN(yr) && yr > 0) ev.year = yr;
   ev.label = lbl;
 
-  // Read updated amounts for all current portfolios
+  // Collect amounts for all current portfolios (a portfolio added after this
+  // event was created will now be included)
   const newAmounts = {};
   portfolios.forEach(pf => {
     const inp = document.getElementById(`se-${i}-${pf.id}`);
@@ -1398,6 +2264,10 @@ function saveSpendEvent(i) {
   renderAll();
 }
 
+/**
+ * Rebuild the per-portfolio amount inputs in the "Add spend event" form.
+ * Called by renderAll() whenever the portfolio list changes.
+ */
 function renderSpendAmounts() {
   const el = document.getElementById('sp-pf-amounts');
   if (!portfolios.length) {
@@ -1413,47 +2283,66 @@ function renderSpendAmounts() {
     </div>`).join('');
 }
 
+/** Read the add-spend form, push a new event, clear the form, re-render. */
 function addSpend() {
   const yr  = parseInt(document.getElementById('sp-yr').value);
   const lbl = document.getElementById('sp-lbl').value.trim() || 'Spend';
   if (!yr || yr < 1) return;
+
   const amounts = {};
   portfolios.forEach(pf => {
     const v = parseFloat(document.getElementById('sa-' + pf.id)?.value);
     if (v > 0) amounts[pf.id] = v;
   });
+
   spendEvents.push({ year: yr, label: lbl, amounts });
   spendEvents.sort((a, b) => a.year - b.year);
+
+  // Clear form inputs
   document.getElementById('sp-yr').value  = '';
   document.getElementById('sp-lbl').value = '';
   portfolios.forEach(pf => { const e = document.getElementById('sa-' + pf.id); if (e) e.value = ''; });
+
   renderAll();
 }
+
+/** Remove a spend event by index and re-render. */
 function removeSpendEvent(i) { spendEvents.splice(i, 1); renderAll(); }
 
-/* ─── Transfers ─────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   11. TRANSFERS
+   A transfer moves a fixed amount from one portfolio to another at a
+   specific global year. The source balance dips; the destination rises.
+   Both continue compounding from their new balances.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Repopulate the from/to dropdowns in the transfer form. */
 function refreshTransferSelects() {
   ['tr-from', 'tr-to'].forEach(id => {
-    const sel = document.getElementById(id);
+    const sel  = document.getElementById(id);
     if (!sel) return;
-    const prev = parseInt(sel.value);
+    const prev = parseInt(sel.value);  // preserve selection after repopulate
     sel.innerHTML = portfolios.map(pf =>
       `<option value="${pf.id}"${pf.id === prev ? ' selected' : ''}>${pf.name}</option>`
     ).join('');
   });
 }
 
+/** Render the saved transfers list in #transfers-list. */
 function renderTransfers() {
   const el = document.getElementById('transfers-list');
   if (!el) return;
+
   if (!transfers.length) {
     el.innerHTML = `<p class="no-items">No transfers yet. Add one below.</p>`;
     return;
   }
+
   el.innerHTML = transfers.map((tr, i) => {
     const from = portfolios.find(p => p.id === tr.from);
     const to   = portfolios.find(p => p.id === tr.to);
-    if (!from || !to) return '';
+    if (!from || !to) return '';  // portfolio may have been deleted
     return `<div class="event-card">
       <div class="event-header">
         <div><p class="event-title">${tr.label}</p><p class="event-year">Year ${tr.year}</p></div>
@@ -1476,60 +2365,116 @@ function renderTransfers() {
   }).join('');
 }
 
+/** Read the add-transfer form, validate, push, clear, re-render. */
 function addTransfer() {
   const yr   = parseInt(document.getElementById('tr-yr').value);
   const amt  = parseFloat(document.getElementById('tr-amt').value);
   const from = parseInt(document.getElementById('tr-from').value);
   const to   = parseInt(document.getElementById('tr-to').value);
   const lbl  = document.getElementById('tr-lbl').value.trim() || 'Transfer';
+
+  // Reject self-transfers and invalid inputs
   if (!yr || yr < 1 || !amt || amt <= 0 || from === to) return;
+
   transfers.push({ id: ++trCounter, year: yr, from, to, amount: amt, label: lbl });
   transfers.sort((a, b) => a.year - b.year);
+
   document.getElementById('tr-yr').value  = '';
   document.getElementById('tr-amt').value = '';
   document.getElementById('tr-lbl').value = '';
   renderAll();
 }
+
+/** Remove a transfer by index and re-render. */
 function removeTransfer(i) { transfers.splice(i, 1); renderAll(); }
 
-/* ─── Pauses ─────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   12. PAUSE DEPOSITS
+   A pause period skips the annual deposit for one portfolio during a
+   set of global years. Compounding still runs — only the cash injection
+   is skipped, modelling a career break or similar interruption.
+
+   Years are stored as a Set<number> so membership checks are O(1).
+   The user enters ranges with syntax like "3-6, 8, 10-12".
+   ═══════════════════════════════════════════════════════════════════ */
 
 /**
- * Parse a string like "3-6, 8, 10-12" into a sorted array of year numbers.
- * Returns { years: number[], error: string|null }
+ * Parse a year range string into a list of explicit years plus an optional open-ended tail.
+ * Supported syntax:
+ *   "5"          → year 5 only
+ *   "3-6"        → years 3, 4, 5, 6
+ *   "3-6, 8"     → years 3, 4, 5, 6, 8
+ *   "27-I"       → year 27 onwards (open-ended, I = Infinity)
+ *   "27-∞"       → same
+ *   "3-6, 10-I"  → years 3-6 plus year 10 onwards
+ *
+ * Returns:
+ *   years        — sorted number array of all explicit years
+ *   openEnded    — true if any part was an open-ended range
+ *   openEndedFrom— the start year of the open-ended range (lowest if multiple)
+ *   error        — error string if parsing failed, else null
+ *
+ * @param {string} raw
+ * @returns {{ years: number[], openEnded: boolean, openEndedFrom: number|null, error: string|null }}
  */
 function parseYearRanges(raw) {
   const years = new Set();
   const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+  let openEnded     = false;
+  let openEndedFrom = null;
+
   for (const part of parts) {
-    const range = part.match(/^(\d+)\s*-\s*(\d+)$/);
-    const single = part.match(/^(\d+)$/);
-    if (range) {
-      const from = parseInt(range[1]), to = parseInt(range[2]);
-      if (from > to) return { years: [], error: `"${part}": start must be ≤ end` };
+    // Open-ended range: "27-I", "27-i", "27-∞", "27-inf" (case-insensitive)
+    const openRange = part.match(/^(\d+)\s*-\s*(i|inf|infinity|∞)$/i);
+    const closedRange = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    const single      = part.match(/^(\d+)$/);
+
+    if (openRange) {
+      const from = parseInt(openRange[1]);
+      openEnded     = true;
+      openEndedFrom = openEndedFrom === null ? from : Math.min(openEndedFrom, from);
+    } else if (closedRange) {
+      const from = parseInt(closedRange[1]), to = parseInt(closedRange[2]);
+      if (from > to) return { years: [], openEnded: false, openEndedFrom: null, error: `"${part}": start must be ≤ end` };
       for (let y = from; y <= to; y++) years.add(y);
     } else if (single) {
       years.add(parseInt(single[1]));
     } else {
-      return { years: [], error: `"${part}" is not a valid year or range` };
+      return { years: [], openEnded: false, openEndedFrom: null, error: `"${part}" is not a valid year or range (use e.g. 3-6, 8, 27-I)` };
     }
   }
-  return { years: [...years].sort((a, b) => a - b), error: null };
+  return { years: [...years].sort((a, b) => a - b), openEnded, openEndedFrom, error: null };
 }
 
-/** Format a sorted year array back into compact range notation */
-function formatYears(arr) {
-  if (!arr.length) return '';
+/**
+ * Format a sorted number array back into compact range notation for display.
+ * [3,4,5,6,8] → "Yr 3–6, 8"
+ * With openEnded: [3,4,5,6], openEndedFrom=10 → "Yr 3–6, 10–∞"
+ * @param {number[]} arr
+ * @param {boolean}  [openEnded=false]
+ * @param {number|null} [openEndedFrom=null]
+ */
+function formatYears(arr, openEnded = false, openEndedFrom = null) {
   const ranges = [];
-  let start = arr[0], end = arr[0];
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] === end + 1) { end = arr[i]; }
-    else { ranges.push(start === end ? `${start}` : `${start}–${end}`); start = end = arr[i]; }
+
+  if (arr.length) {
+    let start = arr[0], end = arr[0];
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i] === end + 1) { end = arr[i]; }
+      else { ranges.push(start === end ? `${start}` : `${start}–${end}`); start = end = arr[i]; }
+    }
+    ranges.push(start === end ? `${start}` : `${start}–${end}`);
   }
-  ranges.push(start === end ? `${start}` : `${start}–${end}`);
-  return 'Yr ' + ranges.join(', ');
+
+  if (openEnded && openEndedFrom !== null) {
+    ranges.push(`${openEndedFrom}–∞`);
+  }
+
+  return ranges.length ? 'Yr ' + ranges.join(', ') : '';
 }
 
+/** Repopulate the portfolio dropdown in the add-pause form. */
 function refreshPauseSelect() {
   const sel = document.getElementById('pa-pf');
   if (!sel) return;
@@ -1539,18 +2484,30 @@ function refreshPauseSelect() {
   ).join('');
 }
 
+/** Render the saved pause periods list in #pauses-list. */
 function renderPauses() {
   const el = document.getElementById('pauses-list');
   if (!el) return;
+
   if (!pausePeriods.length) {
     el.innerHTML = `<p class="no-items">No pause periods yet. Add one below.</p>`;
     return;
   }
+
   el.innerHTML = pausePeriods.map((pa, i) => {
     const pf = portfolios.find(p => p.id === pa.pfId);
     if (!pf) return '';
-    const yearsArr = pa.years instanceof Set ? [...pa.years] : Array.isArray(pa.years) ? pa.years : [];
-    const yearStr  = formatYears(yearsArr.sort((a, b) => a - b));
+
+    // pa.years may be Set or Array depending on origin — normalise for spread
+    const yearsArr = pa.years instanceof Set
+      ? [...pa.years]
+      : Array.isArray(pa.years) ? pa.years : [];
+    const yearStr = formatYears(
+      yearsArr.sort((a, b) => a - b),
+      pa.openEnded || false,
+      pa.openEndedFrom ?? null
+    );
+
     return `<div class="event-card">
       <div class="event-header">
         <div>
@@ -1570,6 +2527,7 @@ function renderPauses() {
   }).join('');
 }
 
+/** Read the add-pause form, validate, push, clear, re-render. */
 function addPause() {
   const pfId = parseInt(document.getElementById('pa-pf').value);
   const raw  = document.getElementById('pa-years').value.trim();
@@ -1578,534 +2536,59 @@ function addPause() {
 
   if (!raw) { prev.textContent = 'Please enter at least one year.'; prev.style.color = '#c0392b'; return; }
 
-  const { years, error } = parseYearRanges(raw);
-  if (error) { prev.textContent = 'Error: ' + error; prev.style.color = '#c0392b'; return; }
-  if (!years.length) { prev.textContent = 'No valid years found.'; prev.style.color = '#c0392b'; return; }
+  const { years, openEnded, openEndedFrom, error } = parseYearRanges(raw);
+  if (error)                        { prev.textContent = 'Error: ' + error;       prev.style.color = '#c0392b'; return; }
+  if (!years.length && !openEnded)  { prev.textContent = 'No valid years found.'; prev.style.color = '#c0392b'; return; }
 
-  pausePeriods.push({ id: ++paCounter, pfId, years: new Set(years), label: lbl, raw });
+  pausePeriods.push({
+    id: ++paCounter,
+    pfId,
+    years:         new Set(years),
+    openEnded,
+    openEndedFrom: openEnded ? openEndedFrom : null,
+    label: lbl,
+    raw
+  });
   document.getElementById('pa-years').value = '';
   document.getElementById('pa-lbl').value   = '';
   prev.textContent = '';
   renderAll();
 }
 
-function removePause(i) {
-  pausePeriods.splice(i, 1);
-  renderAll();
-}
+/** Remove a pause period by index and re-render. */
+function removePause(i) { pausePeriods.splice(i, 1); renderAll(); }
 
-/* Live preview while typing years */
+/**
+ * Live parse-preview: called on every keystroke in the years input.
+ * Shows the parsed year list (or an error) below the input field.
+ */
 function previewPauseYears() {
   const raw  = document.getElementById('pa-years')?.value.trim();
   const prev = document.getElementById('pa-parse-preview');
   if (!prev) return;
   if (!raw) { prev.textContent = ''; return; }
-  const { years, error } = parseYearRanges(raw);
-  if (error) { prev.textContent = 'Error: ' + error; prev.style.color = '#c0392b'; }
-  else { prev.textContent = years.length ? 'Pausing: ' + formatYears(years) : ''; prev.style.color = 'var(--color-text-secondary)'; }
-}
 
-/* ─── Portfolio CRUD ────────────────────────────────────────────── */
-function addPortfolio(opts = {}) {
-  const id       = ++pfCounter;
-  const colorIdx = portfolios.length % PALETTE.length;
-  const pf = {
-    id,
-    name:            opts.name            || 'Portfolio ' + id,
-    color:           PALETTE[colorIdx],
-    principal:       opts.principal       || 500000,
-    annual:          opts.annual          || 120000,
-    rate:            opts.rate            || 7,
-    inflation:       opts.inflation       || 6,
-    years:           opts.years           || 25,
-    startYear:       opts.startYear       || 0,
-    inflateDeposits: opts.inflateDeposits !== undefined ? opts.inflateDeposits : true,
-    collapsed:       false
-  };
-  portfolios.push(pf);
-  const div = document.createElement('div');
-  div.className = 'pf-card';
-  div.id        = 'pf-' + id;
-  document.getElementById('pf-container').appendChild(div);
-  renderAll();
-  return pf;
-}
-
-function removePortfolio(id) {
-  portfolios = portfolios.filter(p => p.id !== id);
-  document.getElementById('pf-' + id)?.remove();
-  spendEvents.forEach(ev => delete ev.amounts[id]);
-  transfers    = transfers.filter(tr => tr.from !== id && tr.to !== id);
-  pausePeriods = pausePeriods.filter(pa => pa.pfId !== id);
-  withdrawals  = withdrawals.filter(wd => wd.pfId !== id);
-  renderAll();
-}
-
-function renamePf(id, val) {
-  const pf = portfolios.find(p => p.id === id);
-  if (!pf) return;
-  pf.name = val;
-  updateChart();
-  updateSummary();
-  renderSpendEvents();
-  renderSpendAmounts();
-  renderTransfers();
-  refreshTransferSelects();
-  renderPauses();
-  refreshPauseSelect();
-  renderWithdrawals();
-  refreshWithdrawalSelect();
-}
-
-function toggleCollapse(id) {
-  const pf = portfolios.find(p => p.id === id);
-  if (pf) { pf.collapsed = !pf.collapsed; renderPortfolioCard(pf); }
-}
-
-function updatePf(id, key, val) {
-  const pf = portfolios.find(p => p.id === id);
-  if (!pf) return;
-  pf[key] = val;
-  renderPortfolioCard(pf);
-  updateChart();
-  updateSummary();
-}
-
-/* ─── CSV Import ────────────────────────────────────────────────── */
-
-/**
- * Parse a CSV string respecting quoted fields (including embedded commas/newlines).
- * Returns an array of string arrays.
- */
-function parseCSVText(text) {
-  const rows = [];
-  let row = [], field = '', inQuote = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i], next = text[i + 1];
-    if (inQuote) {
-      if (ch === '"' && next === '"') { field += '"'; i++; }
-      else if (ch === '"')            { inQuote = false; }
-      else                            { field += ch; }
-    } else {
-      if      (ch === '"')  { inQuote = true; }
-      else if (ch === ',')  { row.push(field.trim()); field = ''; }
-      else if (ch === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; }
-      else if (ch === '\r') { /* skip */ }
-      else                  { field += ch; }
-    }
-  }
-  row.push(field.trim());
-  if (row.some(c => c !== '')) rows.push(row);
-  return rows;
-}
-
-function showImportStatus(msg, isError = false) {
-  const el = document.getElementById('import-status');
-  el.textContent = msg;
-  el.className = 'import-status ' + (isError ? 'error' : 'success');
-  el.style.display = '';
-  setTimeout(() => { el.style.display = 'none'; }, 4000);
-}
-
-function importCSV(input) {
-  const file = input.files[0];
-  if (!file) return;
-  // Reset the input so the same file can be re-imported
-  input.value = '';
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const rows = parseCSVText(e.target.result);
-      _applyImportedRows(rows);
-    } catch (err) {
-      showImportStatus('Import failed: ' + err.message, true);
-    }
-  };
-  reader.readAsText(file);
-}
-
-function _applyImportedRows(rows) {
-  // Split into sections by looking for the === SECTION === sentinel lines
-  const sections = {};
-  let currentKey = null, currentRows = [];
-
-  rows.forEach(row => {
-    const first = (row[0] || '').trim();
-    if (first.startsWith('=== ') && first.endsWith(' ===')) {
-      if (currentKey) sections[currentKey] = currentRows;
-      currentKey  = first.replace(/^=== | ===$/g, '');
-      currentRows = [];
-    } else {
-      currentRows.push(row);
-    }
-  });
-  if (currentKey) sections[currentKey] = currentRows;
-
-  // We need the PORTFOLIO SUMMARY section to restore settings
-  const summaryKey = Object.keys(sections).find(k => k.includes('PORTFOLIO SUMMARY'));
-  if (!summaryKey) throw new Error('Could not find "PORTFOLIO SUMMARY" section in the file.');
-
-  const summaryRows = sections[summaryKey].filter(r => r.some(c => c));
-
-  // ── Parse currency from the BALANCES section header ─────────────
-  const balanceKey  = Object.keys(sections).find(k => k.includes('YEAR-BY-YEAR'));
-  let importRate    = 1;
-  let importSymbol  = '₹';
-
-  if (balanceKey) {
-    // First data row: "Currency: ₹ (rate: 1)"  or  "Currency: $ (rate: 0.011)"
-    const balRows   = sections[balanceKey];
-    const currRow   = balRows.find(r => (r[0] || '').startsWith('Currency:'));
-    if (currRow) {
-      const m = currRow[0].match(/Currency:\s*(.+?)\s*\(rate:\s*([\d.]+)\)/);
-      if (m) { importSymbol = m[1].trim(); importRate = parseFloat(m[2]) || 1; }
-    }
-  }
-
-  // Inverse of the export rate: stored values were multiplied by rate, so divide to get back INR
-  const invRate = importRate > 0 ? 1 / importRate : 1;
-
-  // ── Parse portfolio settings ─────────────────────────────────────
-  // Rows: heading row "Portfolio settings", header row, then one row per portfolio
-  let settingsStart = -1;
-  summaryRows.forEach((r, i) => {
-    if ((r[0] || '').trim() === 'Portfolio settings') settingsStart = i;
-  });
-  if (settingsStart === -1) throw new Error('Missing "Portfolio settings" block.');
-
-  // Header:  Name | Initial deposit | Annual deposit | Rate (%) | Inflation (%) | Years | Start year | Inflate deposits
-  const settingsHeader = summaryRows[settingsStart + 1];
-  const settingsData   = [];
-  for (let i = settingsStart + 2; i < summaryRows.length; i++) {
-    const r = summaryRows[i];
-    if (!r[0] || r[0].trim() === '' || r[0].trim() === 'Portfolio results') break;
-    settingsData.push(r);
-  }
-  if (!settingsData.length) throw new Error('No portfolio data found in the settings block.');
-
-  // ── Parse events section ─────────────────────────────────────────
-  const eventsKey  = Object.keys(sections).find(k => k.includes('EVENTS'));
-  const eventRows  = eventsKey ? sections[eventsKey].filter(r => r.some(c => c)) : [];
-
-  // Split event rows into sub-sections by their heading rows
-  const eventSections = {};
-  let evKey = null, evRows = [];
-  eventRows.forEach(r => {
-    const first = (r[0] || '').trim();
-    if (['Spend events', 'Transfers', 'Deposit pauses', 'Continuous withdrawals'].includes(first)) {
-      if (evKey) eventSections[evKey] = evRows;
-      evKey  = first;
-      evRows = [];
-    } else {
-      evRows.push(r);
-    }
-  });
-  if (evKey) eventSections[evKey] = evRows;
-
-  // ── Build portfolio name → temp ID map (used to link events) ────
-  // We'll create portfolios in order and record the new IDs by name
-  const nameToId = {};
-
-  // ── Reset state and rebuild ──────────────────────────────────────
-  // Suppress renderAll() calls during batch import — call once at the end
-  _importing = true;
-
-  // Remove all existing portfolio DOM nodes
-  portfolios.forEach(pf => {
-    const el = document.getElementById('pf-' + pf.id);
-    if (el) el.remove();
-  });
-  portfolios   = [];
-  spendEvents  = [];
-  transfers    = [];
-  pausePeriods = [];
-  withdrawals  = [];
-  pfCounter    = 0;
-  trCounter    = 0;
-  paCounter    = 0;
-  wdCounter    = 0;
-
-  // ── Create portfolios ────────────────────────────────────────────
-  settingsData.forEach(r => {
-    const name            = r[0] || 'Portfolio';
-    const principal       = parseFloat(r[1]) * invRate || 500000;
-    const annual          = parseFloat(r[2]) * invRate || 120000;
-    const rate            = parseFloat(r[3]) || 7;
-    const inflation       = parseFloat(r[4]) || 6;
-    const years           = parseInt(r[5])   || 25;
-    const startYear       = parseInt(r[6])   || 0;
-    const inflateDeposits = (r[7] || '').trim().toLowerCase() !== 'no';
-
-    const pf = addPortfolio({ name, principal, annual, rate, inflation, years, startYear, inflateDeposits });
-    nameToId[name] = pf.id;
-  });
-
-  // ── Parse spend events ───────────────────────────────────────────
-  const spendRows = eventSections['Spend events'] || [];
-  if (spendRows.length && (spendRows[0][0] || '') !== '(none)') {
-    const header = spendRows[0]; // Year, Label, Portfolio1, Portfolio2, ...
-    for (let i = 1; i < spendRows.length; i++) {
-      const r   = spendRows[i];
-      if (!r[0]) continue;
-      const yr  = parseInt(r[0]);
-      const lbl = r[1] || 'Spend';
-      if (isNaN(yr)) continue;
-      const amounts = {};
-      for (let j = 2; j < header.length; j++) {
-        const pfName = header[j];
-        const id     = nameToId[pfName];
-        const v      = parseFloat(r[j]) * invRate;
-        if (id && !isNaN(v) && v > 0) amounts[id] = v;
-      }
-      spendEvents.push({ year: yr, label: lbl, amounts });
-    }
-    spendEvents.sort((a, b) => a.year - b.year);
-  }
-
-  // ── Parse transfers ──────────────────────────────────────────────
-  const trRows = eventSections['Transfers'] || [];
-  if (trRows.length && (trRows[0][0] || '') !== '(none)') {
-    for (let i = 1; i < trRows.length; i++) {
-      const r = trRows[i];
-      if (!r[0]) continue;
-      const yr     = parseInt(r[0]);
-      const lbl    = r[1] || 'Transfer';
-      const fromId = nameToId[r[2]];
-      const toId   = nameToId[r[3]];
-      const amt    = parseFloat(r[4]) * invRate;
-      if (isNaN(yr) || !fromId || !toId || isNaN(amt) || amt <= 0) continue;
-      transfers.push({ id: ++trCounter, year: yr, from: fromId, to: toId, amount: amt, label: lbl });
-    }
-    transfers.sort((a, b) => a.year - b.year);
-  }
-
-  // ── Parse pause periods ──────────────────────────────────────────
-  const paRows = eventSections['Deposit pauses'] || [];
-  if (paRows.length && (paRows[0][0] || '') !== '(none)') {
-    for (let i = 1; i < paRows.length; i++) {
-      const r    = paRows[i];
-      if (!r[0]) continue;
-      const pfId = nameToId[r[0]];
-      const lbl  = r[1] || 'Pause';
-      const raw  = r[2] || '';
-      if (!pfId || !raw) continue;
-      const yrs  = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-      if (!yrs.length) continue;
-      pausePeriods.push({ id: ++paCounter, pfId, years: new Set(yrs), label: lbl, raw: yrs.join(', ') });
-    }
-  }
-
-  // ── Parse continuous withdrawals ─────────────────────────────────
-  // Header: Portfolio | Label | Start year | End year | Base amount | Inflation rate (%) | Inflate withdrawal
-  const wdRows = eventSections['Continuous withdrawals'] || [];
-  if (wdRows.length && (wdRows[0][0] || '') !== '(none)') {
-    for (let i = 1; i < wdRows.length; i++) {
-      const r    = wdRows[i];
-      if (!r[0]) continue;
-      const pfId      = nameToId[r[0]];
-      const lbl       = r[1] || 'Withdrawal';
-      const startYear = parseInt(r[2]);
-      const endYear   = parseInt(r[3]);
-      const baseAmt   = parseFloat(r[4]) * invRate;
-      const infRate   = parseFloat(r[5]) || 0;
-      const inflate   = (r[6] || '').trim().toLowerCase() !== 'no';
-      if (!pfId || isNaN(startYear) || isNaN(endYear) || isNaN(baseAmt) || baseAmt <= 0) continue;
-      withdrawals.push({ id: ++wdCounter, pfId, startYear, endYear, baseAmount: baseAmt, inflationRate: infRate, inflateWithdrawal: inflate, label: lbl });
-    }
-    withdrawals.sort((a, b) => a.startYear - b.startYear);
-  }
-
-  // ── Restore currency display ─────────────────────────────────────
-  if (importRate !== 1) {
-    currency = 'OTHER';
-    document.getElementById('cur-inr').className   = 'cur-btn';
-    document.getElementById('cur-other').className = 'cur-btn active';
-    document.getElementById('conv-wrap').style.display = 'flex';
-    const rateInput = document.getElementById('conv-rate');
-    const symInput  = document.getElementById('conv-sym');
-    if (rateInput) rateInput.value = importRate;
-    if (symInput)  symInput.value  = importSymbol;
+  const { years, openEnded, openEndedFrom, error } = parseYearRanges(raw);
+  if (error) {
+    prev.textContent = 'Error: ' + error;
+    prev.style.color = '#c0392b';
   } else {
-    currency = 'INR';
-    document.getElementById('cur-inr').className   = 'cur-btn active';
-    document.getElementById('cur-other').className = 'cur-btn';
-    document.getElementById('conv-wrap').style.display = 'none';
+    const display = formatYears(years, openEnded, openEndedFrom);
+    prev.textContent = display ? 'Pausing: ' + display : '';
+    prev.style.color = 'var(--color-text-secondary)';
   }
-
-  // Release the import lock and do one full render with all state in place
-  _importing = false;
-  renderAll();
-  showImportStatus(`Imported ${portfolios.length} portfolio${portfolios.length > 1 ? 's' : ''} successfully.`);
 }
 
-/* ─── CSV Export ────────────────────────────────────────────────── */
-function exportCSV() {
-  if (!portfolios.length) return;
 
-  const sym  = getSymbol();
-  const rate = getRate();
-  const maxY = Math.max(...portfolios.map(p => (p.startYear || 0) + p.years));
+/* ═══════════════════════════════════════════════════════════════════
+   13. WITHDRAWALS
+   A continuous withdrawal subtracts a fixed annual amount from a
+   portfolio each year over a global year range. Optionally the amount
+   grows each year at an inflation rate to preserve purchasing power
+   (e.g. model a retirement income that keeps pace with costs).
+   ═══════════════════════════════════════════════════════════════════ */
 
-  // Convert a raw rupee value to display currency, plain number (no symbol)
-  const cv = v => v !== null && v !== undefined ? (v * rate).toFixed(2) : '';
-
-  // ── Sheet 1: Year-by-year balances ──────────────────────────────
-  const allResults = portfolios.map(pf => computePortfolio(pf, maxY));
-
-  const balanceRows = [];
-
-  // Header row
-  const balanceHeader = ['Year', ...portfolios.map(p => p.name)];
-  if (portfolios.length > 1) balanceHeader.push('Total');
-  balanceRows.push(balanceHeader);
-
-  // Currency row
-  const currencyRow = [`Currency: ${sym} (rate: ${rate})`, ...portfolios.map(() => ''), portfolios.length > 1 ? '' : ''];
-  balanceRows.push(currencyRow);
-
-  // Data rows — one per global year
-  for (let y = 0; y <= maxY; y++) {
-    const label = y === 0 ? 'Now' : `Year ${y}`;
-    const vals  = allResults.map(r => cv(r.balances[y]));
-    const row   = [label, ...vals];
-    if (portfolios.length > 1) {
-      const total = allResults.reduce((s, r) => s + (r.balances[y] ?? 0), 0);
-      // Only show total for years where at least one portfolio has started
-      const anyActive = allResults.some(r => r.balances[y] !== null && r.balances[y] !== undefined);
-      row.push(anyActive ? cv(total) : '');
-    }
-    balanceRows.push(row);
-  }
-
-  // ── Sheet 2: Portfolio summary ───────────────────────────────────
-  const summaryRows = [];
-  summaryRows.push(['Portfolio settings']);
-  summaryRows.push(['Name', 'Initial deposit', 'Annual deposit', 'Rate (%)', 'Inflation (%)', 'Years', 'Start year', 'Inflate deposits']);
-  portfolios.forEach(pf => {
-    summaryRows.push([
-      pf.name,
-      cv(pf.principal),
-      cv(pf.annual),
-      pf.rate.toFixed(1),
-      pf.inflation.toFixed(1),
-      pf.years,
-      pf.startYear || 0,
-      pf.inflateDeposits ? 'Yes' : 'No'
-    ]);
-  });
-
-  summaryRows.push([]);
-  summaryRows.push(['Portfolio results']);
-  summaryRows.push(['Name', 'Final balance', 'Total deposited', 'Interest earned', 'Interest %']);
-  portfolios.forEach((pf, i) => {
-    const r = allResults[i];
-    const pct = r.totalDeposited > 0
-      ? ((r.interest / r.totalDeposited) * 100).toFixed(1) + '%'
-      : '0%';
-    summaryRows.push([pf.name, cv(r.final), cv(r.totalDeposited), cv(r.interest), pct]);
-  });
-
-  // ── Sheet 3: Events ──────────────────────────────────────────────
-  const eventRows = [];
-  eventRows.push(['Spend events']);
-  if (spendEvents.length) {
-    const spendHeader = ['Year', 'Label', ...portfolios.map(p => p.name)];
-    eventRows.push(spendHeader);
-    spendEvents.forEach(ev => {
-      eventRows.push([
-        ev.year, ev.label,
-        ...portfolios.map(pf => cv(ev.amounts[pf.id] || 0))
-      ]);
-    });
-  } else {
-    eventRows.push(['(none)']);
-  }
-
-  eventRows.push([]);
-  eventRows.push(['Transfers']);
-  if (transfers.length) {
-    eventRows.push(['Year', 'Label', 'From', 'To', 'Amount']);
-    transfers.forEach(tr => {
-      const from = portfolios.find(p => p.id === tr.from)?.name || tr.from;
-      const to   = portfolios.find(p => p.id === tr.to)?.name   || tr.to;
-      eventRows.push([tr.year, tr.label, from, to, cv(tr.amount)]);
-    });
-  } else {
-    eventRows.push(['(none)']);
-  }
-
-  eventRows.push([]);
-  eventRows.push(['Deposit pauses']);
-  if (pausePeriods.length) {
-    eventRows.push(['Portfolio', 'Label', 'Global years paused']);
-    pausePeriods.forEach(pa => {
-      const pf  = portfolios.find(p => p.id === pa.pfId);
-      const yrs = (pa.years instanceof Set ? [...pa.years] : Array.isArray(pa.years) ? pa.years : []).sort((a, b) => a - b).join(', ');
-      eventRows.push([pf?.name || pa.pfId, pa.label, yrs]);
-    });
-  } else {
-    eventRows.push(['(none)']);
-  }
-
-  eventRows.push([]);
-  eventRows.push(['Continuous withdrawals']);
-  if (withdrawals.length) {
-    eventRows.push(['Portfolio', 'Label', 'Start year', 'End year', 'Base amount', 'Inflation rate (%)', 'Inflate withdrawal']);
-    withdrawals.forEach(wd => {
-      const pf = portfolios.find(p => p.id === wd.pfId);
-      eventRows.push([
-        pf?.name || wd.pfId,
-        wd.label,
-        wd.startYear,
-        wd.endYear,
-        cv(wd.baseAmount),
-        wd.inflationRate,
-        wd.inflateWithdrawal ? 'Yes' : 'No'
-      ]);
-    });
-  } else {
-    eventRows.push(['(none)']);
-  }
-
-  // ── Combine into one CSV with section separators ─────────────────
-  function rowsToCSV(rows) {
-    return rows.map(r =>
-      r.map(cell => {
-        const s = String(cell ?? '');
-        return s.includes(',') || s.includes('"') || s.includes('\n')
-          ? `"${s.replace(/"/g, '""')}"`
-          : s;
-      }).join(',')
-    ).join('\n');
-  }
-
-  const separator = '\n\n';
-  const csv = [
-    '=== YEAR-BY-YEAR BALANCES (' + sym + ' ' + (rate !== 1 ? `rate:${rate}` : 'INR') + ') ===',
-    rowsToCSV(balanceRows),
-    separator,
-    '=== PORTFOLIO SUMMARY ===',
-    rowsToCSV(summaryRows),
-    separator,
-    '=== EVENTS ===',
-    rowsToCSV(eventRows)
-  ].join('\n');
-
-  // ── Trigger download ─────────────────────────────────────────────
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'portfolio_data.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-/* ─── Withdrawals ────────────────────────────────────────────────── */
-
+/** Repopulate the portfolio dropdown in the add-withdrawal form. */
 function refreshWithdrawalSelect() {
   const sel = document.getElementById('wd-pf');
   if (!sel) return;
@@ -2115,6 +2598,7 @@ function refreshWithdrawalSelect() {
   ).join('');
 }
 
+/** Render the saved withdrawal plans list in #withdrawals-list. */
 function renderWithdrawals() {
   const el = document.getElementById('withdrawals-list');
   if (!el) return;
@@ -2128,9 +2612,9 @@ function renderWithdrawals() {
     const pf = portfolios.find(p => p.id === wd.pfId);
     if (!pf) return '';
 
-    // Show the projected first and last withdrawal amounts
-    const wdInfR = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
-    const lastAmt = wd.baseAmount * Math.pow(1 + wdInfR, wd.endYear - wd.startYear);
+    // Show the projected first and last year withdrawal amounts
+    const wdInfR      = wd.inflateWithdrawal ? (wd.inflationRate || 0) / 100 : 0;
+    const lastAmt     = wd.baseAmount * Math.pow(1 + wdInfR, wd.endYear - wd.startYear);
     const durationYrs = wd.endYear - wd.startYear + 1;
 
     return `<div class="event-card">
@@ -2157,6 +2641,7 @@ function renderWithdrawals() {
   }).join('');
 }
 
+/** Read the add-withdrawal form, validate, push, clear, re-render. */
 function addWithdrawal() {
   const pfId      = portfolios.find(p => p.id == document.getElementById('wd-pf')?.value)?.id;
   const startYear = parseInt(document.getElementById('wd-start').value);
@@ -2166,16 +2651,17 @@ function addWithdrawal() {
   const inflate   = document.getElementById('wd-inflate').checked;
   const lbl       = document.getElementById('wd-lbl').value.trim() || 'Withdrawal';
 
+  // Validate: portfolio must exist, years must be valid, amount must be positive
   if (!pfId || isNaN(startYear) || isNaN(endYear) || isNaN(baseAmt)
       || startYear < 0 || endYear < startYear || baseAmt <= 0) return;
 
   withdrawals.push({
     id: ++wdCounter,
     pfId, startYear, endYear,
-    baseAmount: baseAmt,
-    inflationRate: infRate,
+    baseAmount:        baseAmt,
+    inflationRate:     infRate,
     inflateWithdrawal: inflate,
-    label: lbl
+    label:             lbl
   });
   withdrawals.sort((a, b) => a.startYear - b.startYear);
 
@@ -2188,14 +2674,661 @@ function addWithdrawal() {
   renderAll();
 }
 
-function removeWithdrawal(i) {
-  withdrawals.splice(i, 1);
+/** Remove a withdrawal plan by index and re-render. */
+function removeWithdrawal(i) { withdrawals.splice(i, 1); renderAll(); }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   14. PORTFOLIO CRUD
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Create a new portfolio, append its card div to #pf-container, and
+ * trigger a full re-render. Returns the portfolio object so the CSV
+ * importer can capture its generated id.
+ * @param {Object} opts  Optional overrides for any portfolio field.
+ */
+function addPortfolio(opts = {}) {
+  const id       = ++pfCounter;
+  const colorIdx = portfolios.length % PALETTE.length;
+
+  const pf = {
+    id,
+    name:            opts.name            || 'Portfolio ' + id,
+    color:           PALETTE[colorIdx],
+    principal:       opts.principal       || 500000,
+    annual:          opts.annual          || 120000,
+    rate:            opts.rate            || 7,
+    inflation:       opts.inflation       || 6,
+    years:           opts.years           || 25,
+    startYear:       opts.startYear       || 0,
+    inflateDeposits: opts.inflateDeposits !== undefined ? opts.inflateDeposits : true,
+    // What happens when this portfolio reaches its end year:
+    //   'hold'     — balance stays constant (default current behaviour)
+    //   'transfer' — entire balance is moved to maturityTarget portfolio
+    maturityAction: opts.maturityAction || 'hold',
+    maturityTarget: opts.maturityTarget || null,   // pfId of destination portfolio
+    collapsed:       false
+  };
+
+  portfolios.push(pf);
+
+  // Create the card container — renderPortfolioCard() fills it in during renderAll()
+  const div = document.createElement('div');
+  div.className = 'pf-card';
+  div.id        = 'pf-' + id;
+  document.getElementById('pf-container').appendChild(div);
+
+  // renderAll() is a no-op during batch import (_importing === true),
+  // preventing dozens of intermediate re-renders. A single render fires
+  // at the end of _applyImportedRows() after all state is populated.
+  renderAll();
+  return pf;
+}
+
+/**
+ * Delete a portfolio and all data associated with it:
+ * its spend amounts, transfers, pause periods, and withdrawals.
+ * @param {number} id  Portfolio id.
+ */
+function removePortfolio(id) {
+  portfolios   = portfolios.filter(p => p.id !== id);
+  document.getElementById('pf-' + id)?.remove();
+
+  // Clean up references in all event types
+  spendEvents.forEach(ev  => delete ev.amounts[id]);
+  transfers    = transfers.filter(tr  => tr.from !== id && tr.to  !== id);
+  pausePeriods = pausePeriods.filter(pa => pa.pfId !== id);
+  withdrawals  = withdrawals.filter(wd  => wd.pfId !== id);
+
   renderAll();
 }
 
-/* ─── Full re-render ────────────────────────────────────────────── */
+/**
+ * Rename a portfolio and refresh all UI elements that display its name
+ * (chart legend, summary cards, dropdown selects, event lists).
+ * @param {number} id   Portfolio id.
+ * @param {string} val  New name.
+ */
+function renamePf(id, val) {
+  const pf = portfolios.find(p => p.id === id);
+  if (!pf) return;
+  pf.name = val;
+
+  // Targeted updates — cheaper than a full renderAll() for a rename.
+  // portfolios.forEach re-renders each card so maturity dropdowns pick up the new name.
+  updateChart();
+  updateSummary();
+  portfolios.forEach(p => renderPortfolioCard(p));
+  renderSpendEvents();
+  renderSpendAmounts();
+  renderTransfers();
+  refreshTransferSelects();
+  renderPauses();
+  refreshPauseSelect();
+  renderWithdrawals();
+  refreshWithdrawalSelect();
+}
+
+/**
+ * Toggle the collapsed state of a portfolio card.
+ * Only re-renders the specific card (not the whole page).
+ * @param {number} id  Portfolio id.
+ */
+function toggleCollapse(id) {
+  const pf = portfolios.find(p => p.id === id);
+  if (pf) { pf.collapsed = !pf.collapsed; renderPortfolioCard(pf); }
+}
+
+/**
+ * Update a single field on a portfolio and refresh its card + chart + summary.
+ * Called by slider oninput events and by startInlineEdit() on commit.
+ * @param {number}  id   Portfolio id.
+ * @param {string}  key  Field name.
+ * @param {*}       val  New value.
+ */
+function updatePf(id, key, val) {
+  const pf = portfolios.find(p => p.id === id);
+  if (!pf) return;
+  pf[key] = val;
+  renderPortfolioCard(pf);
+  updateChart();
+  updateSummary();
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   15. CSV IMPORT
+   Restores a complete session from a previously exported CSV file.
+
+   Import flow:
+     1. FileReader reads the raw text
+     2. parseCSVText() tokenises into a 2D array of strings
+     3. _applyImportedRows() splits into named sections (===...===),
+        resets all state, rebuilds portfolios/events, restores currency
+     4. One final renderAll() fires after _importing is set back to false
+
+   _importing flag:
+     Set true before any addPortfolio() call so that the renderAll()
+     inside addPortfolio() is suppressed. Without this, each portfolio
+     added during import would trigger a full re-render with incomplete
+     state (pauses and withdrawals not yet loaded), causing visual
+     artefacts and potentially incorrect balance computations.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Tokenise a raw CSV string into a 2D array of strings.
+ * Handles RFC 4180: quoted fields with embedded commas, newlines,
+ * and escaped double-quotes ("").
+ * @param {string} text  Raw CSV file content.
+ * @returns {string[][]}
+ */
+function parseCSVText(text) {
+  const rows = [];
+  let row = [], field = '', inQuote = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (inQuote) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }  // escaped "
+      else if (ch === '"')             { inQuote = false; }   // closing "
+      else                             { field += ch; }
+    } else {
+      if      (ch === '"')  { inQuote = true; }
+      else if (ch === ',')  { row.push(field.trim()); field = ''; }
+      else if (ch === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; }
+      else if (ch === '\r') { /* skip — handle CRLF line endings */ }
+      else                  { field += ch; }
+    }
+  }
+  // Push the final field/row (no trailing newline in some files)
+  row.push(field.trim());
+  if (row.some(c => c !== '')) rows.push(row);
+  return rows;
+}
+
+/**
+ * Show a brief success or error message in the #import-status div,
+ * then auto-hide it after 4 seconds.
+ * @param {string}  msg      Message text.
+ * @param {boolean} isError  If true, uses the error colour style.
+ */
+function showImportStatus(msg, isError = false) {
+  const el = document.getElementById('import-status');
+  el.textContent = msg;
+  el.className   = 'import-status ' + (isError ? 'error' : 'success');
+  el.style.display = '';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+/**
+ * Triggered by the hidden file input's onchange event.
+ * Resets the input so the same file can be re-imported.
+ * @param {HTMLInputElement} input
+ */
+function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';  // allow re-selecting the same file
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const rows = parseCSVText(e.target.result);
+      _applyImportedRows(rows);
+    } catch (err) {
+      showImportStatus('Import failed: ' + err.message, true);
+    }
+  };
+  reader.readAsText(file);
+}
+
+/**
+ * Apply a parsed CSV (2D string array) to restore the full application state.
+ * This is the core import logic.
+ * @param {string[][]} rows  Output of parseCSVText().
+ */
+function _applyImportedRows(rows) {
+  // ── Split rows into named sections ───────────────────────────────
+  // The export writes sentinel lines like "=== EVENTS ===" between sections.
+  // We collect rows until the next sentinel.
+  const sections = {};
+  let currentKey = null, currentRows = [];
+
+  rows.forEach(row => {
+    const first = (row[0] || '').trim();
+    if (first.startsWith('=== ') && first.endsWith(' ===')) {
+      if (currentKey) sections[currentKey] = currentRows;
+      currentKey  = first.replace(/^=== | ===$/g, '');
+      currentRows = [];
+    } else {
+      currentRows.push(row);
+    }
+  });
+  if (currentKey) sections[currentKey] = currentRows;
+
+  // Require the portfolio summary section — it's the source of truth for settings
+  const summaryKey = Object.keys(sections).find(k => k.includes('PORTFOLIO SUMMARY'));
+  if (!summaryKey) throw new Error('Could not find "PORTFOLIO SUMMARY" section in the file.');
+  const summaryRows = sections[summaryKey].filter(r => r.some(c => c));
+
+  // ── Parse currency from the balances section header ───────────────
+  // The export embeds "Currency: $ (rate: 0.011)" in the second row
+  // of the balances section so we can reverse the conversion on import.
+  const balanceKey = Object.keys(sections).find(k => k.includes('YEAR-BY-YEAR'));
+  let importRate   = 1;
+  let importSymbol = '₹';
+
+  if (balanceKey) {
+    const currRow = sections[balanceKey].find(r => (r[0] || '').startsWith('Currency:'));
+    if (currRow) {
+      const m = currRow[0].match(/Currency:\s*(.+?)\s*\(rate:\s*([\d.]+)\)/);
+      if (m) { importSymbol = m[1].trim(); importRate = parseFloat(m[2]) || 1; }
+    }
+  }
+
+  // Stored values = raw_rupees × importRate, so divide by importRate to recover rupees
+  const invRate = importRate > 0 ? 1 / importRate : 1;
+
+  // ── Locate the portfolio settings block ──────────────────────────
+  let settingsStart = -1;
+  summaryRows.forEach((r, i) => {
+    if ((r[0] || '').trim() === 'Portfolio settings') settingsStart = i;
+  });
+  if (settingsStart === -1) throw new Error('Missing "Portfolio settings" block.');
+
+  // Header row is at settingsStart+1; data rows follow until a blank or "Portfolio results"
+  const settingsData = [];
+  for (let i = settingsStart + 2; i < summaryRows.length; i++) {
+    const r = summaryRows[i];
+    if (!r[0] || r[0].trim() === '' || r[0].trim() === 'Portfolio results') break;
+    settingsData.push(r);
+  }
+  if (!settingsData.length) throw new Error('No portfolio data found in the settings block.');
+
+  // ── Locate the events section ────────────────────────────────────
+  const eventsKey = Object.keys(sections).find(k => k.includes('EVENTS'));
+  const eventRows = eventsKey ? sections[eventsKey].filter(r => r.some(c => c)) : [];
+
+  // Split event rows into named sub-sections by their heading rows
+  const eventSections = {};
+  let evKey = null, evRows = [];
+  eventRows.forEach(r => {
+    const first = (r[0] || '').trim();
+    if (['Spend events', 'Transfers', 'Deposit pauses', 'Continuous withdrawals'].includes(first)) {
+      if (evKey) eventSections[evKey] = evRows;
+      evKey  = first;
+      evRows = [];
+    } else {
+      evRows.push(r);
+    }
+  });
+  if (evKey) eventSections[evKey] = evRows;
+
+  // nameToId maps portfolio name → newly assigned id
+  // (needed to link events to the right portfolios after re-creation)
+  const nameToId = {};
+
+  // ── Reset all state ───────────────────────────────────────────────
+  // Suppress re-renders during the batch rebuild — release below.
+  _importing = true;
+
+  portfolios.forEach(pf => document.getElementById('pf-' + pf.id)?.remove());
+  portfolios   = [];
+  spendEvents  = [];
+  transfers    = [];
+  pausePeriods = [];
+  withdrawals  = [];
+  pfCounter    = 0;
+  trCounter    = 0;
+  paCounter    = 0;
+  wdCounter    = 0;
+
+  // ── Recreate portfolios ───────────────────────────────────────────
+  // Column order: Name | Initial deposit | Annual deposit | Rate | Inflation |
+  //               Years | Start year | Inflate deposits | Maturity action | Maturity target
+  // Maturity target is stored as a portfolio name; resolve to id in a second pass below.
+  const maturityTargetNames = {};   // pfId → target portfolio name (resolved after all portfolios exist)
+  settingsData.forEach(r => {
+    const pf = addPortfolio({
+      name:            r[0] || 'Portfolio',
+      principal:       parseFloat(r[1]) * invRate || 500000,
+      annual:          parseFloat(r[2]) * invRate || 120000,
+      rate:            parseFloat(r[3]) || 7,
+      inflation:       parseFloat(r[4]) || 6,
+      years:           parseInt(r[5])   || 25,
+      startYear:       parseInt(r[6])   || 0,
+      inflateDeposits: (r[7] || '').trim().toLowerCase() !== 'no',
+      maturityAction:  (r[8] || 'hold').trim().toLowerCase() === 'transfer' ? 'transfer' : 'hold',
+      maturityTarget:  null   // resolved below once all portfolios exist
+    });
+    nameToId[r[0]] = pf.id;
+    const targetName = (r[9] || '').trim();
+    if (targetName) maturityTargetNames[pf.id] = targetName;
+  });
+
+  // Second pass: resolve maturity target names → ids now that nameToId is fully built
+  Object.entries(maturityTargetNames).forEach(([pfId, targetName]) => {
+    const pf       = portfolios.find(p => p.id === parseInt(pfId));
+    const targetId = nameToId[targetName];
+    if (pf && targetId && targetId !== pf.id) pf.maturityTarget = targetId;
+  });
+
+  // ── Restore spend events ──────────────────────────────────────────
+  // Header: Year | Label | Portfolio1 | Portfolio2 | ...
+  const spendRows = eventSections['Spend events'] || [];
+  if (spendRows.length && (spendRows[0][0] || '') !== '(none)') {
+    const header = spendRows[0];
+    for (let i = 1; i < spendRows.length; i++) {
+      const r  = spendRows[i];
+      if (!r[0]) continue;
+      const yr = parseInt(r[0]);
+      if (isNaN(yr)) continue;
+      const amounts = {};
+      for (let j = 2; j < header.length; j++) {
+        const id = nameToId[header[j]];
+        const v  = parseFloat(r[j]) * invRate;
+        if (id && !isNaN(v) && v > 0) amounts[id] = v;
+      }
+      spendEvents.push({ year: yr, label: r[1] || 'Spend', amounts });
+    }
+    spendEvents.sort((a, b) => a.year - b.year);
+  }
+
+  // ── Restore transfers ─────────────────────────────────────────────
+  // Header: Year | Label | From | To | Amount
+  const trRows = eventSections['Transfers'] || [];
+  if (trRows.length && (trRows[0][0] || '') !== '(none)') {
+    for (let i = 1; i < trRows.length; i++) {
+      const r      = trRows[i];
+      if (!r[0]) continue;
+      const yr     = parseInt(r[0]);
+      const fromId = nameToId[r[2]];
+      const toId   = nameToId[r[3]];
+      const amt    = parseFloat(r[4]) * invRate;
+      if (isNaN(yr) || !fromId || !toId || isNaN(amt) || amt <= 0) continue;
+      transfers.push({ id: ++trCounter, year: yr, from: fromId, to: toId, amount: amt, label: r[1] || 'Transfer' });
+    }
+    transfers.sort((a, b) => a.year - b.year);
+  }
+
+  // ── Restore pause periods ─────────────────────────────────────────
+  // Header: Portfolio | Label | Global years paused
+  // Years field can be "3, 4, 5, 6, 8" or include an open-ended marker e.g. "3, 4, 27-I".
+  // We use parseYearRanges() which handles both, so open-ended pauses round-trip correctly.
+  const paRows = eventSections['Deposit pauses'] || [];
+  if (paRows.length && (paRows[0][0] || '') !== '(none)') {
+    for (let i = 1; i < paRows.length; i++) {
+      const r    = paRows[i];
+      if (!r[0]) continue;
+      const pfId = nameToId[r[0]];
+      const raw  = r[2] || '';
+      if (!pfId || !raw) continue;
+      const parsed = parseYearRanges(raw);
+      if (parsed.error) continue;
+      if (!parsed.years.length && !parsed.openEnded) continue;
+      pausePeriods.push({
+        id:            ++paCounter,
+        pfId,
+        years:         new Set(parsed.years),
+        openEnded:     parsed.openEnded,
+        openEndedFrom: parsed.openEndedFrom,
+        label:         r[1] || 'Pause',
+        raw
+      });
+    }
+  }
+
+  // ── Restore continuous withdrawals ────────────────────────────────
+  // Header: Portfolio | Label | Start year | End year | Base amount |
+  //         Inflation rate (%) | Inflate withdrawal
+  const wdRows = eventSections['Continuous withdrawals'] || [];
+  if (wdRows.length && (wdRows[0][0] || '') !== '(none)') {
+    for (let i = 1; i < wdRows.length; i++) {
+      const r         = wdRows[i];
+      if (!r[0]) continue;
+      const pfId      = nameToId[r[0]];
+      const startYear = parseInt(r[2]);
+      const endYear   = parseInt(r[3]);
+      const baseAmt   = parseFloat(r[4]) * invRate;
+      const infRate   = parseFloat(r[5]) || 0;
+      const inflate   = (r[6] || '').trim().toLowerCase() !== 'no';
+      if (!pfId || isNaN(startYear) || isNaN(endYear) || isNaN(baseAmt) || baseAmt <= 0) continue;
+      withdrawals.push({ id: ++wdCounter, pfId, startYear, endYear, baseAmount: baseAmt, inflationRate: infRate, inflateWithdrawal: inflate, label: r[1] || 'Withdrawal' });
+    }
+    withdrawals.sort((a, b) => a.startYear - b.startYear);
+  }
+
+  // ── Restore currency display ──────────────────────────────────────
+  if (importRate !== 1) {
+    currency = 'OTHER';
+    document.getElementById('cur-inr').className   = 'cur-btn';
+    document.getElementById('cur-other').className = 'cur-btn active';
+    document.getElementById('conv-wrap').style.display = 'flex';
+    const ri = document.getElementById('conv-rate');
+    const si = document.getElementById('conv-sym');
+    if (ri) ri.value = importRate;
+    if (si) si.value = importSymbol;
+  } else {
+    currency = 'INR';
+    document.getElementById('cur-inr').className   = 'cur-btn active';
+    document.getElementById('cur-other').className = 'cur-btn';
+    document.getElementById('conv-wrap').style.display = 'none';
+  }
+
+  // Release the import lock and do a single clean render with all state in place
+  _importing = false;
+  renderAll();
+  showImportStatus(`Imported ${portfolios.length} portfolio${portfolios.length > 1 ? 's' : ''} successfully.`);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   16. CSV EXPORT
+   Builds a three-section CSV and triggers a browser file download.
+
+   Section 1 — YEAR-BY-YEAR BALANCES
+     Rows: year label | balance per portfolio | total
+     Values are converted to the current display currency (not rupees).
+     A "Currency: ..." row embeds the rate so the import can reverse it.
+
+   Section 2 — PORTFOLIO SUMMARY
+     Sub-section "Portfolio settings": full config row per portfolio.
+     Sub-section "Portfolio results":  final balance, deposited, interest.
+
+   Section 3 — EVENTS
+     Sub-sections for Spend events, Transfers, Deposit pauses,
+     and Continuous withdrawals. Each has its own column header row.
+     Rows with no events use a single "(none)" placeholder so the
+     importer can reliably detect empty sections.
+   ═══════════════════════════════════════════════════════════════════ */
+function exportCSV() {
+  if (!portfolios.length) return;
+
+  const sym  = getSymbol();
+  const rate = getRate();
+  const maxY = Math.max(...portfolios.map(p => (p.startYear || 0) + p.years));
+
+  // Helper: convert raw rupee value to display currency (plain number, no symbol)
+  const cv = v => v !== null && v !== undefined ? (v * rate).toFixed(2) : '';
+
+  // ── Section 1: Year-by-year balances ─────────────────────────────
+  const allResults  = portfolios.map(pf => computePortfolio(pf, maxY));
+  const balanceRows = [];
+
+  // Column headers
+  const balanceHeader = ['Year', ...portfolios.map(p => p.name)];
+  if (portfolios.length > 1) balanceHeader.push('Total');
+  balanceRows.push(balanceHeader);
+
+  // Currency meta-row — used by the importer to reverse conversion
+  balanceRows.push([`Currency: ${sym} (rate: ${rate})`, ...portfolios.map(() => ''), portfolios.length > 1 ? '' : '']);
+
+  // One data row per global year
+  for (let y = 0; y <= maxY; y++) {
+    const label = y === 0 ? 'Now' : `Year ${y}`;
+    const vals  = allResults.map(r => cv(r.balances[y]));
+    const row   = [label, ...vals];
+    if (portfolios.length > 1) {
+      const total     = allResults.reduce((s, r) => s + (r.balances[y] ?? 0), 0);
+      const anyActive = allResults.some(r => r.balances[y] !== null && r.balances[y] !== undefined);
+      row.push(anyActive ? cv(total) : '');
+    }
+    balanceRows.push(row);
+  }
+
+  // ── Section 2: Portfolio summary ──────────────────────────────────
+  const summaryRows = [];
+  summaryRows.push(['Portfolio settings']);
+  summaryRows.push(['Name', 'Initial deposit', 'Annual deposit', 'Rate (%)', 'Inflation (%)', 'Years', 'Start year', 'Inflate deposits', 'Maturity action', 'Maturity target']);
+  portfolios.forEach(pf => {
+    const targetName = pf.maturityAction === 'transfer' && pf.maturityTarget
+      ? (portfolios.find(p => p.id === pf.maturityTarget)?.name || '')
+      : '';
+    summaryRows.push([
+      pf.name,
+      cv(pf.principal),
+      cv(pf.annual),
+      pf.rate.toFixed(1),
+      pf.inflation.toFixed(1),
+      pf.years,
+      pf.startYear || 0,
+      pf.inflateDeposits ? 'Yes' : 'No',
+      pf.maturityAction || 'hold',
+      targetName
+    ]);
+  });
+
+  summaryRows.push([]);  // blank separator row
+  summaryRows.push(['Portfolio results']);
+  summaryRows.push(['Name', 'Final balance', 'Total deposited', 'Interest earned', 'Interest %']);
+  portfolios.forEach((pf, i) => {
+    const r   = allResults[i];
+    const pct = r.totalDeposited > 0
+      ? ((r.interest / r.totalDeposited) * 100).toFixed(1) + '%'
+      : '0%';
+    summaryRows.push([pf.name, cv(r.final), cv(r.totalDeposited), cv(r.interest), pct]);
+  });
+
+  // ── Section 3: Events ─────────────────────────────────────────────
+  const eventRows = [];
+
+  // Spend events
+  eventRows.push(['Spend events']);
+  if (spendEvents.length) {
+    eventRows.push(['Year', 'Label', ...portfolios.map(p => p.name)]);
+    spendEvents.forEach(ev => {
+      eventRows.push([ev.year, ev.label, ...portfolios.map(pf => cv(ev.amounts[pf.id] || 0))]);
+    });
+  } else {
+    eventRows.push(['(none)']);
+  }
+
+  // Transfers
+  eventRows.push([]);
+  eventRows.push(['Transfers']);
+  if (transfers.length) {
+    eventRows.push(['Year', 'Label', 'From', 'To', 'Amount']);
+    transfers.forEach(tr => {
+      const from = portfolios.find(p => p.id === tr.from)?.name || tr.from;
+      const to   = portfolios.find(p => p.id === tr.to)?.name   || tr.to;
+      eventRows.push([tr.year, tr.label, from, to, cv(tr.amount)]);
+    });
+  } else {
+    eventRows.push(['(none)']);
+  }
+
+  // Deposit pauses — years exported as an expanded comma-separated list ("3, 4, 5, 6, 8")
+  // so the importer can simply split on commas without needing range-parsing logic.
+  eventRows.push([]);
+  eventRows.push(['Deposit pauses']);
+  if (pausePeriods.length) {
+    eventRows.push(['Portfolio', 'Label', 'Global years paused']);
+    pausePeriods.forEach(pa => {
+      const pf  = portfolios.find(p => p.id === pa.pfId);
+      const yrs = (pa.years instanceof Set ? [...pa.years] : Array.isArray(pa.years) ? pa.years : [])
+        .sort((a, b) => a - b).join(', ');
+      // Append "27-I" suffix when the pause is open-ended so the importer can reconstruct it
+      const yrsStr = pa.openEnded && pa.openEndedFrom !== null
+        ? (yrs ? yrs + ', ' : '') + pa.openEndedFrom + '-I'
+        : yrs;
+      eventRows.push([pf?.name || pa.pfId, pa.label, yrsStr]);
+    });
+  } else {
+    eventRows.push(['(none)']);
+  }
+
+  // Continuous withdrawals
+  eventRows.push([]);
+  eventRows.push(['Continuous withdrawals']);
+  if (withdrawals.length) {
+    eventRows.push(['Portfolio', 'Label', 'Start year', 'End year', 'Base amount', 'Inflation rate (%)', 'Inflate withdrawal']);
+    withdrawals.forEach(wd => {
+      const pf = portfolios.find(p => p.id === wd.pfId);
+      eventRows.push([
+        pf?.name || wd.pfId,
+        wd.label,
+        wd.startYear,
+        wd.endYear,
+        cv(wd.baseAmount),
+        wd.inflationRate,
+        wd.inflateWithdrawal ? 'Yes' : 'No'
+      ]);
+    });
+  } else {
+    eventRows.push(['(none)']);
+  }
+
+  // ── Serialise rows to CSV text ────────────────────────────────────
+  // RFC 4180: quote any field containing a comma, double-quote, or newline.
+  // Double-quotes inside quoted fields are escaped as "".
+  function rowsToCSV(rows) {
+    return rows.map(r =>
+      r.map(cell => {
+        const s = String(cell ?? '');
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+          ? `"${s.replace(/"/g, '""')}"`
+          : s;
+      }).join(',')
+    ).join('\n');
+  }
+
+  const csv = [
+    '=== YEAR-BY-YEAR BALANCES (' + sym + ' ' + (rate !== 1 ? `rate:${rate}` : 'INR') + ') ===',
+    rowsToCSV(balanceRows),
+    '\n\n',
+    '=== PORTFOLIO SUMMARY ===',
+    rowsToCSV(summaryRows),
+    '\n\n',
+    '=== EVENTS ===',
+    rowsToCSV(eventRows)
+  ].join('\n');
+
+  // ── Trigger browser download ──────────────────────────────────────
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'portfolio_data.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   17. FULL RE-RENDER
+   renderAll() is the single function that rebuilds every piece of UI
+   from the current state. Called after any mutating action.
+
+   It is guarded by _importing: during a batch CSV import, the flag
+   suppresses all intermediate renders so only one clean render fires
+   at the very end, after all portfolios, events, and currency are set.
+   ═══════════════════════════════════════════════════════════════════ */
 function renderAll() {
-  if (_importing) return;
+  if (_importing) return;  // suppress during batch import
+
   portfolios.forEach(pf => renderPortfolioCard(pf));
   renderSpendEvents();
   renderSpendAmounts();
@@ -2209,10 +3342,21 @@ function renderAll() {
   updateSummary();
 }
 
-/* ─── Init ──────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════════════
+   18. INIT
+   Seed the app with two default portfolios representing a conservative
+   FD-style strategy and an equity-style strategy so the chart is
+   immediately populated on first load.
+   ═══════════════════════════════════════════════════════════════════ */
 addPortfolio({ name: 'Portfolio 1', rate: 7,  annual: 120000, years: 25 });
 addPortfolio({ name: 'Portfolio 2', rate: 12, annual: 200000, years: 20 });
 
+// Pre-fill the base-year input with the current year so it's ready when toggled on
+const _byInp = document.getElementById('base-year-input');
+if (_byInp) _byInp.value = baseYear;
+
 </script>
+
 </body>
 </html>

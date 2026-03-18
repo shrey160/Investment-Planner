@@ -275,14 +275,23 @@ function computePortfolio(pf, maxYear) {
   // pausedGlobalYears — Set of global years where this portfolio's deposit is skipped.
   // pa.years may be a Set (created normally) or a plain Array (after CSV import),
   // so we normalise defensively.
+  // For open-ended pauses (openEnded: true), any year >= openEndedFrom is paused.
   const pausedGlobalYears = new Set();
+  let openEndedPauseFrom = Infinity;  // lowest open-ended-from year for this portfolio
   pausePeriods.forEach(pa => {
     if (pa.pfId !== pf.id) return;
     const yrs = pa.years instanceof Set
       ? pa.years
       : new Set(Array.isArray(pa.years) ? pa.years : []);
     yrs.forEach(y => pausedGlobalYears.add(y));
+    if (pa.openEnded && pa.openEndedFrom !== null) {
+      openEndedPauseFrom = Math.min(openEndedPauseFrom, pa.openEndedFrom);
+    }
   });
+
+  /** Returns true if the deposit should be skipped in global year g. */
+  const isDepositPaused = g =>
+    pausedGlobalYears.has(g) || g >= openEndedPauseFrom;
 
   // withdrawalMap[g] — total inflation-adjusted withdrawal amount in global year g.
   // Each withdrawal plan runs from startYear to endYear inclusive, compounding the
@@ -314,7 +323,7 @@ function computePortfolio(pf, maxYear) {
       balance *= (1 + r);
 
       // Step 2: add annual deposit unless this global year is paused
-      if (!pausedGlobalYears.has(g)) {
+      if (!isDepositPaused(g)) {
         // If inflateDeposits is on, each successive year's deposit grows by the
         // portfolio's inflation rate to preserve its real purchasing-power value.
         const deposit = pf.inflateDeposits
@@ -539,9 +548,6 @@ function updateChart() {
   });
 
   // Pause highlight boxes — shown only when the "Pause shading" toggle is active.
-  // Each pause period can have non-contiguous years (e.g. "3-6, 8, 11").
-  // We group those into contiguous runs and draw one box per run, so
-  // years 3-6 become a single wide box rather than four single-year boxes.
   if (showPauseHighlight && pausePeriods.length) {
     let boxIdx = 0;
     pausePeriods.forEach(pa => {
@@ -552,40 +558,51 @@ function updateChart() {
       const yearsArr = (pa.years instanceof Set)
         ? [...pa.years]
         : Array.isArray(pa.years) ? [...pa.years] : [];
-      if (!yearsArr.length) return;
 
-      // Hex → rgba helper. Uses bit shifts to avoid variable name collisions.
+      // Hex → rgba helper
       const toRgba = (h, a) => {
         const n = parseInt(h.replace('#', ''), 16);
         return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
       };
 
-      // Build contiguous runs from the sorted year list
+      // Build contiguous runs from explicit years, then append an open-ended run if needed
       const sorted = yearsArr.map(Number).sort((a, b) => a - b);
       const runs = [];
-      let s = sorted[0], e = sorted[0];
-      for (let i = 1; i < sorted.length; i++) {
-        if (sorted[i] === e + 1) { e = sorted[i]; }
-        else { runs.push([s, e]); s = e = sorted[i]; }
+      if (sorted.length) {
+        let s = sorted[0], e = sorted[0];
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i] === e + 1) { e = sorted[i]; }
+          else { runs.push([s, e]); s = e = sorted[i]; }
+        }
+        runs.push([s, e]);
       }
-      runs.push([s, e]);
+      // Open-ended pause extends from openEndedFrom to the chart's right edge
+      if (pa.openEnded && pa.openEndedFrom !== null && pa.openEndedFrom <= maxY) {
+        const lastRun = runs[runs.length - 1];
+        if (lastRun && lastRun[1] + 1 === pa.openEndedFrom) {
+          lastRun[1] = maxY;   // merge if contiguous with the last explicit run
+        } else {
+          runs.push([pa.openEndedFrom, maxY]);
+        }
+      }
 
-      // Draw one box per run.
-      // xMax is set to "Yr (to+1)" so the box covers the full "to" year visually.
+      if (!runs.length) return;
+
       runs.forEach(([from, to]) => {
         if (from > maxY) return;
         annotations['pause_' + pa.id + '_' + boxIdx++] = {
           type:            'box',
           xMin:            getXLabel(from),
           xMax:            getXLabel(Math.min(to + 1, maxY)),
-          backgroundColor: toRgba(pf.color, 0.10),   // 10% fill
-          borderColor:     toRgba(pf.color, 0.35),   // 35% border
+          backgroundColor: toRgba(pf.color, 0.10),
+          borderColor:     toRgba(pf.color, 0.35),
           borderWidth:     1,
           borderDash:      [3, 3],
           label: {
             display:         true,
-            content:         [pf.name, 'paused'],    // two-line label
-            position:        { x: 'center', y: 'start' },   // top of box
+            // Show ∞ in the label when this run reaches the end of the chart
+            content:         (pa.openEnded && to >= maxY) ? [pf.name, 'paused ∞'] : [pf.name, 'paused'],
+            position:        { x: 'center', y: 'start' },
             yAdjust:         6,
             backgroundColor: 'transparent',
             color:           toRgba(pf.color, 0.65),
@@ -696,7 +713,7 @@ function updateChart() {
                   const yrs = pa.years instanceof Set
                     ? pa.years
                     : new Set(Array.isArray(pa.years) ? pa.years : []);
-                  return yrs.has(yr);
+                  return yrs.has(yr) || (pa.openEnded && pa.openEndedFrom !== null && yr >= pa.openEndedFrom);
                 })
                 .map(pa => portfolios.find(p => p.id === pa.pfId)?.name)
                 .filter(Boolean);
@@ -1326,46 +1343,78 @@ function removeTransfer(i) { transfers.splice(i, 1); renderAll(); }
    ═══════════════════════════════════════════════════════════════════ */
 
 /**
- * Parse "3-6, 8, 10-12" into a sorted number array.
- * @param {string} raw  User input string.
- * @returns {{ years: number[], error: string|null }}
+ * Parse a year range string into a list of explicit years plus an optional open-ended tail.
+ * Supported syntax:
+ *   "5"          → year 5 only
+ *   "3-6"        → years 3, 4, 5, 6
+ *   "3-6, 8"     → years 3, 4, 5, 6, 8
+ *   "27-I"       → year 27 onwards (open-ended, I = Infinity)
+ *   "27-∞"       → same
+ *   "3-6, 10-I"  → years 3-6 plus year 10 onwards
+ *
+ * Returns:
+ *   years        — sorted number array of all explicit years
+ *   openEnded    — true if any part was an open-ended range
+ *   openEndedFrom— the start year of the open-ended range (lowest if multiple)
+ *   error        — error string if parsing failed, else null
+ *
+ * @param {string} raw
+ * @returns {{ years: number[], openEnded: boolean, openEndedFrom: number|null, error: string|null }}
  */
 function parseYearRanges(raw) {
   const years = new Set();
   const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+  let openEnded     = false;
+  let openEndedFrom = null;
 
   for (const part of parts) {
-    const range  = part.match(/^(\d+)\s*-\s*(\d+)$/);
-    const single = part.match(/^(\d+)$/);
+    // Open-ended range: "27-I", "27-i", "27-∞", "27-inf" (case-insensitive)
+    const openRange = part.match(/^(\d+)\s*-\s*(i|inf|infinity|∞)$/i);
+    const closedRange = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    const single      = part.match(/^(\d+)$/);
 
-    if (range) {
-      const from = parseInt(range[1]), to = parseInt(range[2]);
-      if (from > to) return { years: [], error: `"${part}": start must be ≤ end` };
+    if (openRange) {
+      const from = parseInt(openRange[1]);
+      openEnded     = true;
+      openEndedFrom = openEndedFrom === null ? from : Math.min(openEndedFrom, from);
+    } else if (closedRange) {
+      const from = parseInt(closedRange[1]), to = parseInt(closedRange[2]);
+      if (from > to) return { years: [], openEnded: false, openEndedFrom: null, error: `"${part}": start must be ≤ end` };
       for (let y = from; y <= to; y++) years.add(y);
     } else if (single) {
       years.add(parseInt(single[1]));
     } else {
-      return { years: [], error: `"${part}" is not a valid year or range` };
+      return { years: [], openEnded: false, openEndedFrom: null, error: `"${part}" is not a valid year or range (use e.g. 3-6, 8, 27-I)` };
     }
   }
-  return { years: [...years].sort((a, b) => a - b), error: null };
+  return { years: [...years].sort((a, b) => a - b), openEnded, openEndedFrom, error: null };
 }
 
 /**
  * Format a sorted number array back into compact range notation for display.
  * [3,4,5,6,8] → "Yr 3–6, 8"
+ * With openEnded: [3,4,5,6], openEndedFrom=10 → "Yr 3–6, 10–∞"
  * @param {number[]} arr
+ * @param {boolean}  [openEnded=false]
+ * @param {number|null} [openEndedFrom=null]
  */
-function formatYears(arr) {
-  if (!arr.length) return '';
+function formatYears(arr, openEnded = false, openEndedFrom = null) {
   const ranges = [];
-  let start = arr[0], end = arr[0];
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] === end + 1) { end = arr[i]; }
-    else { ranges.push(start === end ? `${start}` : `${start}–${end}`); start = end = arr[i]; }
+
+  if (arr.length) {
+    let start = arr[0], end = arr[0];
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i] === end + 1) { end = arr[i]; }
+      else { ranges.push(start === end ? `${start}` : `${start}–${end}`); start = end = arr[i]; }
+    }
+    ranges.push(start === end ? `${start}` : `${start}–${end}`);
   }
-  ranges.push(start === end ? `${start}` : `${start}–${end}`);
-  return 'Yr ' + ranges.join(', ');
+
+  if (openEnded && openEndedFrom !== null) {
+    ranges.push(`${openEndedFrom}–∞`);
+  }
+
+  return ranges.length ? 'Yr ' + ranges.join(', ') : '';
 }
 
 /** Repopulate the portfolio dropdown in the add-pause form. */
@@ -1396,7 +1445,11 @@ function renderPauses() {
     const yearsArr = pa.years instanceof Set
       ? [...pa.years]
       : Array.isArray(pa.years) ? pa.years : [];
-    const yearStr = formatYears(yearsArr.sort((a, b) => a - b));
+    const yearStr = formatYears(
+      yearsArr.sort((a, b) => a - b),
+      pa.openEnded || false,
+      pa.openEndedFrom ?? null
+    );
 
     return `<div class="event-card">
       <div class="event-header">
@@ -1426,11 +1479,19 @@ function addPause() {
 
   if (!raw) { prev.textContent = 'Please enter at least one year.'; prev.style.color = '#c0392b'; return; }
 
-  const { years, error } = parseYearRanges(raw);
-  if (error)         { prev.textContent = 'Error: ' + error;          prev.style.color = '#c0392b'; return; }
-  if (!years.length) { prev.textContent = 'No valid years found.';    prev.style.color = '#c0392b'; return; }
+  const { years, openEnded, openEndedFrom, error } = parseYearRanges(raw);
+  if (error)                        { prev.textContent = 'Error: ' + error;       prev.style.color = '#c0392b'; return; }
+  if (!years.length && !openEnded)  { prev.textContent = 'No valid years found.'; prev.style.color = '#c0392b'; return; }
 
-  pausePeriods.push({ id: ++paCounter, pfId, years: new Set(years), label: lbl, raw });
+  pausePeriods.push({
+    id: ++paCounter,
+    pfId,
+    years:         new Set(years),
+    openEnded,
+    openEndedFrom: openEnded ? openEndedFrom : null,
+    label: lbl,
+    raw
+  });
   document.getElementById('pa-years').value = '';
   document.getElementById('pa-lbl').value   = '';
   prev.textContent = '';
@@ -1442,8 +1503,7 @@ function removePause(i) { pausePeriods.splice(i, 1); renderAll(); }
 
 /**
  * Live parse-preview: called on every keystroke in the years input.
- * Shows the parsed year list (or an error) below the input field
- * before the user commits.
+ * Shows the parsed year list (or an error) below the input field.
  */
 function previewPauseYears() {
   const raw  = document.getElementById('pa-years')?.value.trim();
@@ -1451,12 +1511,13 @@ function previewPauseYears() {
   if (!prev) return;
   if (!raw) { prev.textContent = ''; return; }
 
-  const { years, error } = parseYearRanges(raw);
+  const { years, openEnded, openEndedFrom, error } = parseYearRanges(raw);
   if (error) {
     prev.textContent = 'Error: ' + error;
     prev.style.color = '#c0392b';
   } else {
-    prev.textContent = years.length ? 'Pausing: ' + formatYears(years) : '';
+    const display = formatYears(years, openEnded, openEndedFrom);
+    prev.textContent = display ? 'Pausing: ' + display : '';
     prev.style.color = 'var(--color-text-secondary)';
   }
 }
@@ -1936,8 +1997,8 @@ function _applyImportedRows(rows) {
 
   // ── Restore pause periods ─────────────────────────────────────────
   // Header: Portfolio | Label | Global years paused
-  // Years are stored as a comma-separated list of integers (e.g. "3, 4, 5, 6, 8").
-  // We always create a proper Set<number> here so downstream code works correctly.
+  // Years field can be "3, 4, 5, 6, 8" or include an open-ended marker e.g. "3, 4, 27-I".
+  // We use parseYearRanges() which handles both, so open-ended pauses round-trip correctly.
   const paRows = eventSections['Deposit pauses'] || [];
   if (paRows.length && (paRows[0][0] || '') !== '(none)') {
     for (let i = 1; i < paRows.length; i++) {
@@ -1946,10 +2007,18 @@ function _applyImportedRows(rows) {
       const pfId = nameToId[r[0]];
       const raw  = r[2] || '';
       if (!pfId || !raw) continue;
-      const yrs = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-      if (!yrs.length) continue;
-      // Store raw as normalised comma-separated string for consistency with addPause()
-      pausePeriods.push({ id: ++paCounter, pfId, years: new Set(yrs), label: r[1] || 'Pause', raw: yrs.join(', ') });
+      const parsed = parseYearRanges(raw);
+      if (parsed.error) continue;
+      if (!parsed.years.length && !parsed.openEnded) continue;
+      pausePeriods.push({
+        id:            ++paCounter,
+        pfId,
+        years:         new Set(parsed.years),
+        openEnded:     parsed.openEnded,
+        openEndedFrom: parsed.openEndedFrom,
+        label:         r[1] || 'Pause',
+        raw
+      });
     }
   }
 
@@ -2122,7 +2191,11 @@ function exportCSV() {
       const pf  = portfolios.find(p => p.id === pa.pfId);
       const yrs = (pa.years instanceof Set ? [...pa.years] : Array.isArray(pa.years) ? pa.years : [])
         .sort((a, b) => a - b).join(', ');
-      eventRows.push([pf?.name || pa.pfId, pa.label, yrs]);
+      // Append "27-I" suffix when the pause is open-ended so the importer can reconstruct it
+      const yrsStr = pa.openEnded && pa.openEndedFrom !== null
+        ? (yrs ? yrs + ', ' : '') + pa.openEndedFrom + '-I'
+        : yrs;
+      eventRows.push([pf?.name || pa.pfId, pa.label, yrsStr]);
     });
   } else {
     eventRows.push(['(none)']);
