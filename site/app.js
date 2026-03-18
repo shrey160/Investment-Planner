@@ -854,16 +854,23 @@ function updateSummary() {
 
 /**
  * Config for each editable portfolio field.
- * rv()  — reads the current value from a portfolio object.
- * isFloat — whether to parse with parseFloat (vs parseInt).
+ *   min / max      — bounds enforced on the inline number input (click-to-type)
+ *   sliderMin / sliderMax — range shown on the range slider (coarser, more practical range)
+ *   step           — slider step (inline input uses the same step)
+ *   isFloat        — parse with parseFloat (true) or parseInt (false)
+ *   rv()           — reads the current value from a portfolio object
+ *
+ * principal / annual have a wide input range (0–20Cr) but a tighter slider
+ * range (0–20L) so the slider stays usable for typical values while
+ * power users can still type a precise figure beyond the slider's max.
  */
 const FIELD_CONFIG = {
-  principal: { min: 500,  max: 10000000, step: 500,  isFloat: false, rv: pf => pf.principal  },
-  annual:    { min: 0,    max: 2000000,  step: 1000, isFloat: false, rv: pf => pf.annual      },
-  rate:      { min: 0.5,  max: 25,       step: 0.5,  isFloat: true,  rv: pf => pf.rate        },
-  inflation: { min: 0,    max: 15,       step: 0.5,  isFloat: true,  rv: pf => pf.inflation   },
-  years:     { min: 1,    max: 50,       step: 1,    isFloat: false, rv: pf => pf.years       },
-  startYear: { min: 0,    max: 49,       step: 1,    isFloat: false, rv: pf => pf.startYear   },
+  principal: { min: 0,   max: 200000000, sliderMin: 0,   sliderMax: 2000000, step: 500,  isFloat: false, rv: pf => pf.principal  },
+  annual:    { min: 0,   max: 200000000, sliderMin: 0,   sliderMax: 2000000, step: 1000, isFloat: false, rv: pf => pf.annual      },
+  rate:      { min: 0.5, max: 25,        sliderMin: 0.5, sliderMax: 25,      step: 0.5,  isFloat: true,  rv: pf => pf.rate        },
+  inflation: { min: 0,   max: 15,        sliderMin: 0,   sliderMax: 15,      step: 0.5,  isFloat: true,  rv: pf => pf.inflation   },
+  years:     { min: 1,   max: 50,        sliderMin: 1,   sliderMax: 50,      step: 1,    isFloat: false, rv: pf => pf.years       },
+  startYear: { min: 0,   max: 49,        sliderMin: 0,   sliderMax: 49,      step: 1,    isFloat: false, rv: pf => pf.startYear   },
 };
 
 /**
@@ -931,12 +938,12 @@ function renderPortfolioCard(pf) {
     <div class="pf-sliders">
       <div class="pf-row">
         <label class="pf-row-label"><span>Initial deposit</span>${valSpan('principal', fmt(pf.principal))}</label>
-        <input type="range" min="500" max="10000000" step="500" value="${pf.principal}"
+        <input type="range" min="0" max="2000000" step="500" value="${Math.min(pf.principal, 2000000)}"
                oninput="updatePf(${pf.id},'principal',+this.value)">
       </div>
       <div class="pf-row">
         <label class="pf-row-label"><span>Annual deposit</span>${valSpan('annual', fmt(pf.annual) + '/yr')}</label>
-        <input type="range" min="0" max="2000000" step="1000" value="${pf.annual}"
+        <input type="range" min="0" max="2000000" step="1000" value="${Math.min(pf.annual, 2000000)}"
                oninput="updatePf(${pf.id},'annual',+this.value)">
       </div>
       <div class="pf-row">
