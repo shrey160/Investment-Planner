@@ -1,39 +1,101 @@
-/* ─── Reset & base ──────────────────────────────────────────────── */
+/*
+ * styles.css — Multi-Portfolio Compound Interest Calculator
+ * ─────────────────────────────────────────────────────────
+ * Table of contents
+ *   1. Reset & base
+ *   2. CSS custom properties (light mode)
+ *   3. Dark mode overrides
+ *   4. Body & app shell
+ *   5. Top bar (currency + export/import)
+ *   6. Summary row
+ *   7. Chart card
+ *   8.   Chart legend markers
+ *   9.   Chart controls (zoom axis, shading toggles, reset zoom)
+ *  10. Tab bar
+ *  11. Portfolio cards
+ *  12.   Inline editable value (click-to-type on sliders)
+ *  13. Event cards (spends, transfers, pauses, withdrawals)
+ *  14.   Pills (portfolio colour badges inside event cards)
+ *  15. Spend form
+ *  16. Transfer / Pause / Withdrawal form (shared grid)
+ *  17. Buttons (add, icon, collapse, currency, export, import)
+ *  18. Import status feedback
+ *  19. Form inputs (range slider, text/number sinput)
+ *  20. Toggle switch
+ *  21. Utility classes
+ */
+
+
+/* ─────────────────────────────────────────────────────────────────
+   1. RESET & BASE
+   Zero out browser default margins/padding; enforce border-box
+   sizing on every element so widths include padding & borders.
+   ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+
+/* ─────────────────────────────────────────────────────────────────
+   2. CSS CUSTOM PROPERTIES — LIGHT MODE
+   Warm linen palette: no pure whites anywhere.
+   Four background tiers create visual depth:
+     bg          — page background (lightest, warmest)
+     bg-card     — card surfaces, floats above the page
+     bg-secondary— recessed surfaces (tab bars, hover states)
+     bg-tertiary — deeply recessed (stat cards, inputs, slider track)
+   ───────────────────────────────────────────────────────────────── */
 :root {
-  --color-bg:           #f7f4f0;
-  --color-bg-card:      #fdfaf7;
-  --color-bg-secondary: #ede9e3;
-  --color-bg-tertiary:  #e2ddd6;
-  --color-border:       rgba(100,88,70,0.13);
-  --color-border-strong:rgba(100,88,70,0.28);
-  --color-text:         #2a2520;
-  --color-text-secondary:#6b6259;
-  --color-text-hint:    #9e958a;
-  --color-accent:       #2d6fa8;
-  --color-total:        #8a8278;
+  --color-bg:            #f7f4f0;   /* warm linen — page background       */
+  --color-bg-card:       #fdfaf7;   /* barely-there cream — card surface   */
+  --color-bg-secondary:  #ede9e3;   /* warm sand — recessed surfaces       */
+  --color-bg-tertiary:   #e2ddd6;   /* muted clay — inputs, stat cards     */
+
+  --color-border:        rgba(100, 88, 70, 0.13);  /* soft warm hairline   */
+  --color-border-strong: rgba(100, 88, 70, 0.28);  /* visible border       */
+
+  --color-text:           #2a2520;  /* warm near-black                     */
+  --color-text-secondary: #6b6259;  /* muted brown-grey                    */
+  --color-text-hint:      #9e958a;  /* placeholder / hint text             */
+
+  --color-accent: #2d6fa8;          /* blue — interactive elements         */
+  --color-total:  #8a8278;          /* grey — total line & dashes          */
+
+  /* Corner radii — used consistently across all components */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
 }
 
+
+/* ─────────────────────────────────────────────────────────────────
+   3. DARK MODE OVERRIDES
+   Follows the same warm-brown palette but inverted:
+   dark surfaces use brown-tinted darks, not cold greys.
+   ───────────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg:           #1e1c19;
-    --color-bg-card:      #252320;
-    --color-bg-secondary: #2e2b27;
-    --color-bg-tertiary:  #38342f;
-    --color-border:       rgba(255,245,230,0.09);
-    --color-border-strong:rgba(255,245,230,0.22);
-    --color-text:         #ede8e1;
-    --color-text-secondary:#a89f94;
-    --color-text-hint:    #6e6560;
-    --color-accent:       #5b9fd6;
-    --color-total:        #9e9890;
+    --color-bg:            #1e1c19;
+    --color-bg-card:       #252320;
+    --color-bg-secondary:  #2e2b27;
+    --color-bg-tertiary:   #38342f;
+
+    --color-border:        rgba(255, 245, 230, 0.09);
+    --color-border-strong: rgba(255, 245, 230, 0.22);
+
+    --color-text:           #ede8e1;
+    --color-text-secondary: #a89f94;
+    --color-text-hint:      #6e6560;
+
+    --color-accent: #5b9fd6;   /* lighter blue for dark backgrounds */
+    --color-total:  #9e9890;
   }
 }
 
+
+/* ─────────────────────────────────────────────────────────────────
+   4. BODY & APP SHELL
+   System font stack, warm background, generous line-height.
+   .app-container caps width and centres the layout.
+   ───────────────────────────────────────────────────────────────── */
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--color-bg);
@@ -43,33 +105,52 @@ body {
   padding: 1.5rem;
 }
 
-/* ─── App shell ─────────────────────────────────────────────────── */
 .app-container { max-width: 860px; margin: 0 auto; }
 
-/* ─── Top bar ───────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   5. TOP BAR — currency controls + CSV export / import
+   Flex row that wraps on narrow screens. The custom-currency
+   conversion inputs (.conversion-wrap) are hidden by default and
+   shown via JS when "Custom currency" is selected.
+   ───────────────────────────────────────────────────────────────── */
 .top-bar {
-  display: flex; align-items: center; flex-wrap: wrap;
-  gap: 10px; margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 1.25rem;
 }
 .currency-controls { display: flex; gap: 8px; }
-.conversion-wrap {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
-.conversion-wrap input[type="number"] { width: 90px; }
-.conversion-wrap input[type="text"]   { width: 48px; }
 
-/* ─── Summary row ───────────────────────────────────────────────── */
+.conversion-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.conversion-wrap input[type="number"] { width: 90px; }  /* rate input     */
+.conversion-wrap input[type="text"]   { width: 48px; }  /* symbol input   */
+
+
+/* ─────────────────────────────────────────────────────────────────
+   6. SUMMARY ROW
+   Auto-fit grid of stat cards, one per portfolio + optional Total.
+   Each card gets a left-border colour accent matching its portfolio.
+   ───────────────────────────────────────────────────────────────── */
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px; margin-bottom: 1.5rem;
+  gap: 10px;
+  margin-bottom: 1.5rem;
 }
 .summary-card {
   background: var(--color-bg-tertiary);
   border-radius: var(--radius-md);
   padding: 10px 12px;
-  border-left: 3px solid transparent;
+  border-left: 3px solid transparent;  /* overridden inline per portfolio */
 }
+/* The Total card uses a dashed border to match the dashed chart line */
 .summary-card.total {
   border-left: 3px dashed var(--color-total);
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
@@ -77,7 +158,12 @@ body {
 .summary-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 3px; }
 .summary-val   { font-size: 18px; font-weight: 500; color: var(--color-text); }
 
-/* ─── Chart card ────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   7. CHART CARD
+   The card wrapping the Chart.js canvas and its header controls.
+   .chart-wrapper sets the fixed pixel height the canvas fills.
+   ───────────────────────────────────────────────────────────────── */
 .chart-card {
   background: var(--color-bg-card);
   border: 0.5px solid var(--color-border);
@@ -86,20 +172,63 @@ body {
   margin-bottom: 2rem;
 }
 .chart-header {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 10px; margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
 }
-.legend { display: flex; gap: 14px; font-size: 12px; flex-wrap: wrap; }
+.legend      { display: flex; gap: 14px; font-size: 12px; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 5px; color: var(--color-text); font-size: 12px; }
-.legend-dot  { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
-.legend-dash { width: 18px; border-top: 2px dashed var(--color-total); display: inline-block; }
-.legend-spend-marker    { width: 2px; height: 12px; background: #D85A30; display: inline-block; border-radius: 1px; flex-shrink: 0; }
-.legend-pause-marker    { width: 12px; height: 10px; background: rgba(127,119,221,0.18); border: 1px dashed rgba(127,119,221,0.55); border-radius: 2px; display: inline-block; flex-shrink: 0; }
-.legend-withdrawal-marker { width: 12px; height: 10px; background: rgba(29,158,117,0.12); border: 1.5px dashed rgba(29,158,117,0.6); border-radius: 2px; display: inline-block; flex-shrink: 0; }
 .total-toggle { display: flex; align-items: center; gap: 8px; }
 .chart-wrapper { position: relative; width: 100%; height: 300px; }
 
-/* ─── Reset zoom button ─────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   8. CHART LEGEND MARKERS
+   Small inline shapes in the legend row that represent each
+   event type visually without relying on chart canvas space.
+   ───────────────────────────────────────────────────────────────── */
+
+/* Solid colour square — one per portfolio (colour set inline) */
+.legend-dot  { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+
+/* Dashed horizontal line — represents the Total line */
+.legend-dash { width: 18px; border-top: 2px dashed var(--color-total); display: inline-block; }
+
+/* Thin vertical bar — represents spend event markers on the chart */
+.legend-spend-marker {
+  width: 2px; height: 12px;
+  background: #D85A30;
+  display: inline-block; border-radius: 1px; flex-shrink: 0;
+}
+
+/* Dashed rectangle — represents pause period shading on the chart */
+.legend-pause-marker {
+  width: 12px; height: 10px;
+  background: rgba(127, 119, 221, 0.18);
+  border: 1px dashed rgba(127, 119, 221, 0.55);
+  border-radius: 2px; display: inline-block; flex-shrink: 0;
+}
+
+/* Dashed rectangle (green tint) — represents withdrawal period shading */
+.legend-withdrawal-marker {
+  width: 12px; height: 10px;
+  background: rgba(29, 158, 117, 0.12);
+  border: 1.5px dashed rgba(29, 158, 117, 0.6);
+  border-radius: 2px; display: inline-block; flex-shrink: 0;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   9. CHART CONTROLS — zoom axis, shading toggles, reset zoom
+   All use the shared .zoom-mode-btn style. Active state = accent
+   blue fill. .zoom-mode-group wraps the X/Y/XY trio into a
+   visually connected segmented control.
+   ───────────────────────────────────────────────────────────────── */
+
+/* Reset zoom — hidden until the user zooms or pans */
 .reset-zoom-btn {
   padding: 4px 10px;
   font-size: 12px;
@@ -117,13 +246,15 @@ body {
   border-color: var(--color-accent);
 }
 
-/* ─── Zoom axis mode toggle ─────────────────────────────────────── */
+/* Segmented control container for X / Y / XY buttons */
 .zoom-mode-group {
   display: flex;
   border: 0.5px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
+
+/* Individual segment or standalone toggle button */
 .zoom-mode-btn {
   padding: 3px 9px;
   font-size: 11px;
@@ -138,39 +269,64 @@ body {
 }
 .zoom-mode-btn:last-child { border-right: none; }
 .zoom-mode-btn:hover { background: var(--color-bg-secondary); color: var(--color-text); }
+
+/* Active state: filled with accent blue */
 .zoom-mode-btn.active {
   background: var(--color-accent);
   color: #fff;
 }
 
-/* ─── Tabs ──────────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   10. TAB BAR
+   Five tabs switching between content panels. The active tab gets
+   the card background so it appears to "lift" off the tab bar.
+   ───────────────────────────────────────────────────────────────── */
 .tab-bar {
-  display: flex; gap: 8px; margin-bottom: 1.5rem;
-  background: var(--color-bg-secondary); padding: 6px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+  background: var(--color-bg-secondary);
+  padding: 6px;
   border-radius: var(--radius-lg);
+  flex-wrap: wrap;
 }
 .tab-btn {
-  padding: 7px 18px; font-size: 14px; cursor: pointer;
+  padding: 7px 18px;
+  font-size: 14px;
+  cursor: pointer;
   border-radius: var(--radius-md);
   border: 0.5px solid var(--color-border-strong);
-  background: transparent; color: var(--color-text-secondary);
+  background: transparent;
+  color: var(--color-text-secondary);
   transition: all 0.15s;
 }
 .tab-btn.active {
-  background: var(--color-bg-card); color: var(--color-text);
-  font-weight: 500; border-color: var(--color-border-strong);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  font-weight: 500;
+  border-color: var(--color-border-strong);
 }
 .tab-btn:hover:not(.active) { color: var(--color-text); }
 
-/* ─── Portfolio cards ───────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   11. PORTFOLIO CARDS
+   Each portfolio is a .pf-card injected into #pf-container.
+   Inside: a header row, three stat cells, and a sliders grid.
+   ───────────────────────────────────────────────────────────────── */
 .pf-card {
   background: var(--color-bg-card);
   border: 0.5px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem; margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
 }
+/* Header: colour dot + editable name + collapse/remove buttons */
 .pf-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
-.pf-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.pf-dot    { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+/* Name is a bare input — looks like plain text until focused */
 .pf-name {
   font-size: 15px; font-weight: 500; color: var(--color-text);
   border: none; background: transparent; outline: none;
@@ -178,47 +334,61 @@ body {
 }
 .pf-name:focus { border-bottom: 1px solid var(--color-border-strong); }
 
+/* Three stat cells: Final / Deposited / Interest */
 .pf-stats-grid {
-  display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
-.pf-stat-card {
-  background: var(--color-bg-tertiary);
-  border-radius: var(--radius-md); padding: 8px 10px;
-}
+.pf-stat-card  { background: var(--color-bg-tertiary); border-radius: var(--radius-md); padding: 8px 10px; }
 .pf-stat-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 2px; }
 .pf-stat-val   { font-size: 15px; font-weight: 500; color: var(--color-text); }
 
-.pf-sliders {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 10px 20px; margin-top: 12px;
-}
-.pf-row { display: flex; flex-direction: column; gap: 4px; }
+/* Two-column grid for the six parameter sliders */
+.pf-sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-top: 12px; }
+.pf-row     { display: flex; flex-direction: column; gap: 4px; }
 .pf-row-label {
   font-size: 12px; color: var(--color-text-secondary);
   display: flex; justify-content: space-between;
 }
 
-/* ─── Inline editable value ─────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   12. INLINE EDITABLE VALUE
+   The value label next to each slider is clickable (.pf-row-val).
+   Clicking replaces it with an <input> (.pf-row-val-input) that
+   commits on Enter/blur and reverts on Escape.
+   ───────────────────────────────────────────────────────────────── */
 .pf-row-val {
   font-size: 13px; font-weight: 500; color: var(--color-text);
-  cursor: pointer; border-bottom: 1px dashed transparent;
-  transition: border-color 0.15s; user-select: none;
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.15s;
+  user-select: none;
 }
-.pf-row-val:hover { border-bottom-color: var(--color-border-strong); color: var(--color-accent); }
+.pf-row-val:hover {
+  border-bottom-color: var(--color-border-strong);
+  color: var(--color-accent);
+}
 .pf-row-val-input {
   font-size: 13px; font-weight: 500; color: var(--color-text);
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-accent);
-  border-radius: var(--radius-sm); padding: 1px 5px;
-  width: 90px; text-align: right; outline: none;
+  border-radius: var(--radius-sm);
+  padding: 1px 5px; width: 90px; text-align: right; outline: none;
 }
 
-/* ─── Spend / Transfer event cards ─────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   13. EVENT CARDS — spends, transfers, pauses, withdrawals
+   Shared card style used in all four event lists.
+   ───────────────────────────────────────────────────────────────── */
 .event-card {
   background: var(--color-bg-card);
   border: 0.5px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 10px 14px; margin-bottom: 10px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
 }
 .event-header {
   display: flex; align-items: flex-start;
@@ -227,50 +397,74 @@ body {
 .event-title { font-size: 14px; font-weight: 500; color: var(--color-text); margin-bottom: 2px; }
 .event-year  { font-size: 12px; color: var(--color-text-secondary); }
 
+/* Editable title input inside a spend event card */
 .event-title-input {
-  font-weight: 500;
-  font-size: 13px;
-  width: 100%;
-  background: transparent;
-  border-color: transparent;
-  padding: 2px 4px;
-  margin-bottom: 2px;
+  font-weight: 500; font-size: 13px; width: 100%;
+  background: transparent; border-color: transparent;
+  padding: 2px 4px; margin-bottom: 2px;
 }
 .event-title-input:hover { border-color: var(--color-border); }
 .event-title-input:focus { border-color: var(--color-accent); background: var(--color-bg-secondary); }
-.pills-row   { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.pf-pill {
-  display: flex; align-items: center; gap: 6px;
-  padding: 4px 10px; border-radius: 20px;
-  font-size: 12px; font-weight: 500;
-}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   14. PILLS — portfolio colour badges inside event cards
+   Each pill shows a coloured dot + portfolio name + amount.
+   Background is the portfolio's hex colour at ~12% opacity (set
+   inline in JS). Transfer cards also use a plain text arrow.
+   ───────────────────────────────────────────────────────────────── */
+.pills-row  { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.pf-pill    { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
 .pf-pill-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 .transfer-arrow { font-size: 16px; color: var(--color-text-secondary); }
 
-/* ─── Spend form ────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   15. SPEND FORM
+   Two-column grid: year (narrow) + label (fills remaining space).
+   Per-portfolio amount rows are injected by renderSpendAmounts().
+   ───────────────────────────────────────────────────────────────── */
 .spend-form-grid {
   display: grid; grid-template-columns: 80px 1fr;
   gap: 10px; margin-bottom: 12px;
 }
 .spend-form-grid input { width: 100%; }
+
+/* Amount row per portfolio: dot + name + currency symbol + input */
 .pf-amount-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .pf-amount-row .pf-amount-name { font-size: 13px; color: var(--color-text); min-width: 100px; flex: 1; }
 .pf-amount-row input { width: 110px; text-align: right; }
 
-/* ─── Transfer form ─────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   16. TRANSFER / PAUSE / WITHDRAWAL FORM GRID
+   Shared two-column responsive grid used by three panels.
+   Full-width fields use grid-column: 1 / -1 inline.
+   Dropdowns get a custom chevron via background-image.
+   ───────────────────────────────────────────────────────────────── */
 .transfer-form-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 4px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px 16px; margin-bottom: 4px;
 }
 .transfer-form-grid input,
 .transfer-form-grid select { width: 100%; }
+
+/* Custom dropdown arrow (no system appearance) */
 select.sinput {
   appearance: none; -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239e958a'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 10px center;
-  padding-right: 28px; cursor: pointer;
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
 }
 
-/* ─── Buttons ───────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   17. BUTTONS
+   ───────────────────────────────────────────────────────────────── */
+
+/* Full-width "add" button at the bottom of each panel/form */
 .add-btn {
   width: 100%; padding: 10px; font-size: 14px; cursor: pointer;
   border-radius: var(--radius-md);
@@ -279,17 +473,23 @@ select.sinput {
   transition: background 0.15s; margin-top: 4px;
 }
 .add-btn:hover { background: var(--color-bg-secondary); }
+
+/* Small × remove button inside cards */
 .icon-btn {
   border: none; background: none; cursor: pointer;
   color: var(--color-text-secondary); padding: 0 4px;
   font-size: 16px; line-height: 1;
 }
 .icon-btn:hover { color: var(--color-text); }
+
+/* "− collapse / + expand" text button in portfolio card headers */
 .collapse-btn {
   border: none; background: none; cursor: pointer;
   font-size: 13px; color: var(--color-text-secondary); padding: 0;
 }
 .collapse-btn:hover { color: var(--color-text); }
+
+/* Currency toggle buttons (₹ Rupee / Custom currency) */
 .cur-btn {
   padding: 5px 14px; font-size: 13px; cursor: pointer;
   border-radius: var(--radius-sm);
@@ -302,80 +502,80 @@ select.sinput {
   border-color: var(--color-accent); font-weight: 500;
 }
 
-/* ─── Export button ─────────────────────────────────────────────── */
+/* Export CSV button — pushed to the right via margin-left: auto */
 .export-btn {
   margin-left: auto;
-  padding: 5px 14px;
-  font-size: 13px;
-  cursor: pointer;
+  padding: 5px 14px; font-size: 13px; cursor: pointer;
   border-radius: var(--radius-sm);
   border: 0.5px solid var(--color-border-strong);
-  background: transparent;
-  color: var(--color-text-secondary);
-  transition: all 0.15s;
-  white-space: nowrap;
+  background: transparent; color: var(--color-text-secondary);
+  transition: all 0.15s; white-space: nowrap;
 }
-.export-btn:hover {
-  background: var(--color-bg-secondary);
-  color: var(--color-text);
-}
+.export-btn:hover { background: var(--color-bg-secondary); color: var(--color-text); }
 
-/* ─── Import button ─────────────────────────────────────────────── */
+/* Import CSV — a <label> styled as a button (wraps hidden file input) */
 .import-btn {
-  padding: 5px 14px;
-  font-size: 13px;
-  cursor: pointer;
+  padding: 5px 14px; font-size: 13px; cursor: pointer;
   border-radius: var(--radius-sm);
   border: 0.5px solid var(--color-border-strong);
-  background: transparent;
-  color: var(--color-text-secondary);
-  transition: all 0.15s;
-  white-space: nowrap;
-  user-select: none;
+  background: transparent; color: var(--color-text-secondary);
+  transition: all 0.15s; white-space: nowrap; user-select: none;
 }
-.import-btn:hover {
-  background: var(--color-bg-secondary);
-  color: var(--color-text);
-}
+.import-btn:hover { background: var(--color-bg-secondary); color: var(--color-text); }
 
+
+/* ─────────────────────────────────────────────────────────────────
+   18. IMPORT STATUS FEEDBACK
+   Brief message shown after a CSV import attempt.
+   JS adds .success or .error class, then hides after 4 seconds.
+   ───────────────────────────────────────────────────────────────── */
 .import-status {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
+  font-size: 12px; padding: 4px 10px;
+  border-radius: var(--radius-sm); white-space: nowrap;
 }
 .import-status.success {
-  background: #e6f4ea;
-  color: #1e6e38;
-  border: 0.5px solid #a8d5b5;
+  background: #e6f4ea; color: #1e6e38; border: 0.5px solid #a8d5b5;
 }
 .import-status.error {
-  background: #fce8e8;
-  color: #a32d2d;
-  border: 0.5px solid #f09595;
+  background: #fce8e8; color: #a32d2d; border: 0.5px solid #f09595;
 }
-
 @media (prefers-color-scheme: dark) {
   .import-status.success { background: #1a3325; color: #6fcf97; border-color: #2d5a40; }
   .import-status.error   { background: #3a1a1a; color: #f09595; border-color: #6b2c2c; }
 }
 
-/* ─── Form inputs ───────────────────────────────────────────────── */
-input[type="range"] { width: 100%; accent-color: var(--color-accent); background: transparent; }
+
+/* ─────────────────────────────────────────────────────────────────
+   19. FORM INPUTS — range slider + sinput (text/number/select)
+   Range sliders use a custom track and thumb to match the warm
+   palette. The thumb is accent blue; the track is bg-tertiary.
+   .sinput is used for all text/number inputs and selects across
+   every tab panel.
+   ───────────────────────────────────────────────────────────────── */
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-accent);
+  background: transparent;
+}
+/* Custom track — warm recessed trough */
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px; border-radius: 2px; background: var(--color-bg-tertiary);
 }
 input[type="range"]::-moz-range-track {
   height: 4px; border-radius: 2px; background: var(--color-bg-tertiary);
 }
+/* Custom thumb — accent blue circle */
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 16px; height: 16px;
-  border-radius: 50%; background: var(--color-accent); margin-top: -6px; cursor: pointer;
+  border-radius: 50%; background: var(--color-accent);
+  margin-top: -6px; cursor: pointer;
 }
 input[type="range"]::-moz-range-thumb {
   width: 16px; height: 16px; border-radius: 50%;
   border: none; background: var(--color-accent); cursor: pointer;
 }
+
+/* Standard text/number input used throughout the forms */
 .sinput {
   padding: 6px 8px; font-size: 13px;
   border: 0.5px solid var(--color-border);
@@ -383,31 +583,93 @@ input[type="range"]::-moz-range-thumb {
   background: var(--color-bg-tertiary);
   color: var(--color-text); outline: none;
 }
-.sinput:focus { border-color: var(--color-accent); background: var(--color-bg-secondary); }
+.sinput:focus {
+  border-color: var(--color-accent);
+  background: var(--color-bg-secondary);
+}
 
-/* ─── Toggle switch ─────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   20. TOGGLE SWITCH
+   Custom checkbox styled as a pill toggle. The hidden <input>
+   controls state; .tog-track is the pill; .tog-thumb is the knob.
+   Used for: inflate deposits, inflate withdrawal, show total,
+             pause/withdrawal shading, total line.
+   ───────────────────────────────────────────────────────────────── */
 .tog { position: relative; width: 36px; height: 20px; flex-shrink: 0; display: inline-block; }
-.tog input { opacity: 0; width: 0; height: 0; }
+.tog input { opacity: 0; width: 0; height: 0; }  /* hidden — state only */
+
+/* Pill background: grey when unchecked, accent when checked */
 .tog-track {
   position: absolute; inset: 0; border-radius: 10px;
-  cursor: pointer; transition: background 0.2s; background: #888780;
+  cursor: pointer; transition: background 0.2s;
+  background: #888780;  /* unchecked colour */
 }
 .tog input:checked + .tog-track { background: var(--color-accent); }
+
+/* The circular knob — warm off-white instead of pure white */
 .tog-thumb {
-  position: absolute; top: 2px; width: 16px; height: 16px;
-  border-radius: 50%; background: #f5f0ea;
+  position: absolute; top: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #f5f0ea;
   transition: transform 0.2s; pointer-events: none;
-  transform: translateX(2px);
+  transform: translateX(2px);   /* unchecked position */
 }
 .tog input:checked ~ .tog-thumb { transform: translateX(18px); }
+
+/* Row that centres the inflate-deposits toggle in the sliders grid */
 .inflate-toggle-row {
   display: flex; align-items: center; justify-content: center;
   gap: 8px; padding-top: 14px;
 }
 
-/* ─── Utility ───────────────────────────────────────────────────── */
-.muted-label   { font-size: 13px; color: var(--color-text-secondary); }
-.hint-label    { font-size: 12px; color: var(--color-text-hint); }
-.section-title { font-size: 13px; font-weight: 500; color: var(--color-text); margin-bottom: 12px; }
-.field-label   { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
-.no-items      { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1rem; }
+/* ─── Maturity action row ─────────────────────────────────────── */
+/* Spans the full two-column slider grid */
+.maturity-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--color-border);
+  margin-top: 6px;
+}
+.maturity-options {
+  display: flex;
+  gap: 6px;
+}
+/* Pill-style radio button */
+.maturity-opt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--color-border-strong);
+  background: transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+.maturity-opt input[type="radio"] { display: none; }
+.maturity-opt:hover { background: var(--color-bg-secondary); color: var(--color-text); }
+.maturity-opt.active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+.maturity-target-select { flex-shrink: 0; }
+
+
+/* ─────────────────────────────────────────────────────────────────
+   21. UTILITY CLASSES
+   Reusable type treatments applied across all panels.
+   ───────────────────────────────────────────────────────────────── */
+.muted-label   { font-size: 13px; color: var(--color-text-secondary); }  /* secondary text next to controls */
+.hint-label    { font-size: 12px; color: var(--color-text-hint); }        /* placeholder hints, parenthetical notes */
+.section-title { font-size: 13px; font-weight: 500; color: var(--color-text); margin-bottom: 12px; }  /* form card headings */
+.field-label   { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }           /* input labels */
+.no-items      { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1rem; }           /* empty-state messages */

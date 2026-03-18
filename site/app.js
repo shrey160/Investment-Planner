@@ -241,6 +241,37 @@ function computePortfolio(pf, maxYear) {
     if (tr.to   === pf.id) transferMap[tr.year] = (transferMap[tr.year] || 0) + tr.amount;
   });
 
+  // Maturity inflows: other portfolios whose maturityAction is 'transfer' pointing
+  // at this portfolio dump their entire final balance here at their close year.
+  //
+  // IMPORTANT: we must compute the source's final balance *before* the maturity
+  // zeroing step, so we temporarily override maturityAction to 'hold' for that
+  // recursive call. This avoids getting back 0 (which is what the source shows
+  // after zeroing itself out).
+  portfolios.forEach(src => {
+    if (src.id === pf.id) return;
+    if (src.maturityAction !== 'transfer' || src.maturityTarget !== pf.id) return;
+    const srcCloseYear = (src.startYear || 0) + src.years;
+    if (srcCloseYear > limit) return;
+
+    // Temporarily treat source as 'hold' to get the true pre-transfer balance
+    const origAction = src.maturityAction;
+    src.maturityAction = 'hold';
+    const srcResult = computePortfolio(src, srcCloseYear);
+    src.maturityAction = origAction;
+
+    const srcFinal = srcResult.balances[srcCloseYear] ?? 0;
+    if (srcFinal > 0) {
+      transferMap[srcCloseYear] = (transferMap[srcCloseYear] || 0) + srcFinal;
+    }
+  });
+
+  // Maturity action: if this portfolio is set to transfer its balance to another
+  // portfolio at end-of-life, we record the close year so the loop can zero it out.
+  const maturityYear   = start + pf.years;
+  const willTransfer   = pf.maturityAction === 'transfer' && pf.maturityTarget !== null
+                         && pf.maturityTarget !== pf.id;
+
   // pausedGlobalYears — Set of global years where this portfolio's deposit is skipped.
   // pa.years may be a Set (created normally) or a plain Array (after CSV import),
   // so we normalise defensively.
@@ -300,10 +331,14 @@ function computePortfolio(pf, maxYear) {
       // Step 4: deduct continuous withdrawal for this year (if any)
       balance = Math.max(0, balance - (withdrawalMap[g] || 0));
 
+      // Step 5: if this is the close year and maturityAction is 'transfer',
+      // zero out this portfolio (the full balance flows to the target).
+      if (willTransfer && localY === pf.years) balance = 0;
+
     } else {
       // ── CLOSED phase ───────────────────────────────────────────
-      // No compounding, no deposits. Transfers and withdrawals still apply
-      // (e.g. a post-retirement drawdown continues, transfers still rebalance).
+      // No compounding, no deposits. Transfers and withdrawals still apply.
+      // If maturityAction is 'transfer', balance was already zeroed at close year.
       balance = Math.max(0, balance + (transferMap[g]   || 0));
       balance = Math.max(0, balance - (withdrawalMap[g] || 0));
     }
@@ -974,6 +1009,32 @@ function renderPortfolioCard(pf) {
         </label>
         <span class="muted-label" style="font-size:12px;">Inflate deposits</span>
       </div>
+
+      <div class="maturity-row">
+        <span class="muted-label" style="font-size:12px;white-space:nowrap;">At end of term</span>
+        <div class="maturity-options">
+          <label class="maturity-opt ${pf.maturityAction === 'hold' ? 'active' : ''}">
+            <input type="radio" name="mat-${pf.id}" value="hold"
+                   ${pf.maturityAction === 'hold' ? 'checked' : ''}
+                   onchange="updatePf(${pf.id},'maturityAction','hold')">
+            Keep balance
+          </label>
+          <label class="maturity-opt ${pf.maturityAction === 'transfer' ? 'active' : ''}">
+            <input type="radio" name="mat-${pf.id}" value="transfer"
+                   ${pf.maturityAction === 'transfer' ? 'checked' : ''}
+                   onchange="updatePf(${pf.id},'maturityAction','transfer')">
+            Transfer to
+          </label>
+        </div>
+        ${pf.maturityAction === 'transfer' ? `
+        <select class="sinput maturity-target-select" style="font-size:12px;padding:3px 8px;"
+                onchange="updatePf(${pf.id},'maturityTarget',+this.value)">
+          <option value="" disabled ${!pf.maturityTarget ? 'selected' : ''}>Choose portfolio…</option>
+          ${portfolios.filter(p => p.id !== pf.id).map(p =>
+            `<option value="${p.id}" ${pf.maturityTarget === p.id ? 'selected' : ''}>${p.name}</option>`
+          ).join('')}
+        </select>` : ''}
+      </div>
     </div>`;
 
   el.innerHTML = `
@@ -1524,6 +1585,11 @@ function addPortfolio(opts = {}) {
     years:           opts.years           || 25,
     startYear:       opts.startYear       || 0,
     inflateDeposits: opts.inflateDeposits !== undefined ? opts.inflateDeposits : true,
+    // What happens when this portfolio reaches its end year:
+    //   'hold'     — balance stays constant (default current behaviour)
+    //   'transfer' — entire balance is moved to maturityTarget portfolio
+    maturityAction: opts.maturityAction || 'hold',
+    maturityTarget: opts.maturityTarget || null,   // pfId of destination portfolio
     collapsed:       false
   };
 
@@ -1571,9 +1637,11 @@ function renamePf(id, val) {
   if (!pf) return;
   pf.name = val;
 
-  // Targeted updates — cheaper than a full renderAll() for a rename
+  // Targeted updates — cheaper than a full renderAll() for a rename.
+  // portfolios.forEach re-renders each card so maturity dropdowns pick up the new name.
   updateChart();
   updateSummary();
+  portfolios.forEach(p => renderPortfolioCard(p));
   renderSpendEvents();
   renderSpendAmounts();
   renderTransfers();
@@ -1800,7 +1868,9 @@ function _applyImportedRows(rows) {
 
   // ── Recreate portfolios ───────────────────────────────────────────
   // Column order: Name | Initial deposit | Annual deposit | Rate | Inflation |
-  //               Years | Start year | Inflate deposits
+  //               Years | Start year | Inflate deposits | Maturity action | Maturity target
+  // Maturity target is stored as a portfolio name; resolve to id in a second pass below.
+  const maturityTargetNames = {};   // pfId → target portfolio name (resolved after all portfolios exist)
   settingsData.forEach(r => {
     const pf = addPortfolio({
       name:            r[0] || 'Portfolio',
@@ -1810,9 +1880,20 @@ function _applyImportedRows(rows) {
       inflation:       parseFloat(r[4]) || 6,
       years:           parseInt(r[5])   || 25,
       startYear:       parseInt(r[6])   || 0,
-      inflateDeposits: (r[7] || '').trim().toLowerCase() !== 'no'
+      inflateDeposits: (r[7] || '').trim().toLowerCase() !== 'no',
+      maturityAction:  (r[8] || 'hold').trim().toLowerCase() === 'transfer' ? 'transfer' : 'hold',
+      maturityTarget:  null   // resolved below once all portfolios exist
     });
     nameToId[r[0]] = pf.id;
+    const targetName = (r[9] || '').trim();
+    if (targetName) maturityTargetNames[pf.id] = targetName;
+  });
+
+  // Second pass: resolve maturity target names → ids now that nameToId is fully built
+  Object.entries(maturityTargetNames).forEach(([pfId, targetName]) => {
+    const pf       = portfolios.find(p => p.id === parseInt(pfId));
+    const targetId = nameToId[targetName];
+    if (pf && targetId && targetId !== pf.id) pf.maturityTarget = targetId;
   });
 
   // ── Restore spend events ──────────────────────────────────────────
@@ -1973,8 +2054,11 @@ function exportCSV() {
   // ── Section 2: Portfolio summary ──────────────────────────────────
   const summaryRows = [];
   summaryRows.push(['Portfolio settings']);
-  summaryRows.push(['Name', 'Initial deposit', 'Annual deposit', 'Rate (%)', 'Inflation (%)', 'Years', 'Start year', 'Inflate deposits']);
+  summaryRows.push(['Name', 'Initial deposit', 'Annual deposit', 'Rate (%)', 'Inflation (%)', 'Years', 'Start year', 'Inflate deposits', 'Maturity action', 'Maturity target']);
   portfolios.forEach(pf => {
+    const targetName = pf.maturityAction === 'transfer' && pf.maturityTarget
+      ? (portfolios.find(p => p.id === pf.maturityTarget)?.name || '')
+      : '';
     summaryRows.push([
       pf.name,
       cv(pf.principal),
@@ -1983,7 +2067,9 @@ function exportCSV() {
       pf.inflation.toFixed(1),
       pf.years,
       pf.startYear || 0,
-      pf.inflateDeposits ? 'Yes' : 'No'
+      pf.inflateDeposits ? 'Yes' : 'No',
+      pf.maturityAction || 'hold',
+      targetName
     ]);
   });
 
